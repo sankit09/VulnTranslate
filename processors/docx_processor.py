@@ -324,61 +324,44 @@ class DOCXProcessor(IDocumentProcessor):
             paragraph.text = new_text
             return
         
-        # Store original formatting from all runs
-        original_runs_formatting = []
+        # Store original formatting from the first meaningful run
+        original_formatting = None
         for run in paragraph.runs:
-            original_runs_formatting.append({
-                'bold': run.bold,
-                'italic': run.italic,
-                'underline': run.underline,
-                'font_size': run.font.size,
-                'font_name': run.font.name,
-                'text': run.text
-            })
+            if run.text.strip():  # Only use non-empty runs for formatting
+                original_formatting = {
+                    'bold': run.bold,
+                    'italic': run.italic,
+                    'underline': run.underline,
+                    'font_size': run.font.size,
+                    'font_name': run.font.name,
+                    'font_color': run.font.color.rgb if run.font.color.rgb else None
+                }
+                break
         
-        # Clear all runs but preserve paragraph
-        try:
-            for run in list(paragraph.runs):
-                run._element.getparent().remove(run._element)
-        except:
-            # Fallback: clear runs the simple way
-            paragraph.clear()
+        # Simple and reliable approach: clear and rebuild
+        paragraph.clear()
         
-        # Add new text with preserved formatting from first run
-        if original_runs_formatting:
-            new_run = paragraph.add_run(new_text)
-            first_run_format = original_runs_formatting[0]
-            
-            if first_run_format['bold'] is not None:
-                new_run.bold = first_run_format['bold']
-            if first_run_format['italic'] is not None:
-                new_run.italic = first_run_format['italic']
-            if first_run_format['underline'] is not None:
-                new_run.underline = first_run_format['underline']
-            if first_run_format['font_size']:
-                new_run.font.size = first_run_format['font_size']
-            if first_run_format['font_name']:
-                new_run.font.name = first_run_format['font_name']
-        else:
-            paragraph.add_run(new_text)
+        # Add new text with preserved formatting
+        new_run = paragraph.add_run(new_text)
         
-        # Add new text with original formatting
-        if original_run:
-            new_run = paragraph.runs[0] if paragraph.runs else paragraph.add_run()
-            new_run.text = new_text
-            # Copy formatting from original run
-            if original_run.bold is not None:
-                new_run.bold = original_run.bold
-            if original_run.italic is not None:
-                new_run.italic = original_run.italic
-            if original_run.underline is not None:
-                new_run.underline = original_run.underline
-            if original_run.font.size:
-                new_run.font.size = original_run.font.size
-            if original_run.font.name:
-                new_run.font.name = original_run.font.name
-        else:
-            paragraph.add_run(new_text)
+        if original_formatting:
+            try:
+                # Apply preserved formatting to new run
+                if original_formatting['bold'] is not None:
+                    new_run.bold = original_formatting['bold']
+                if original_formatting['italic'] is not None:
+                    new_run.italic = original_formatting['italic']
+                if original_formatting['underline'] is not None:
+                    new_run.underline = original_formatting['underline']
+                if original_formatting['font_size']:
+                    new_run.font.size = original_formatting['font_size']
+                if original_formatting['font_name']:
+                    new_run.font.name = original_formatting['font_name']
+                if original_formatting['font_color']:
+                    new_run.font.color.rgb = original_formatting['font_color']
+            except Exception:
+                # If any formatting application fails, continue with plain text
+                pass
 
     def get_document_statistics(self, file_content: bytes) -> Dict[str, Any]:
         """Get detailed statistics about the document"""
