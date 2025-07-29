@@ -297,8 +297,12 @@ class DOCXProcessor(IDocumentProcessor):
         for para_idx, paragraph in enumerate(doc.paragraphs):
             para_id = str(para_idx)
             if para_id in translations:
-                # Replace paragraph text while preserving formatting
-                self._replace_paragraph_text(paragraph, translations[para_id])
+                try:
+                    # Replace paragraph text while preserving formatting
+                    self._replace_paragraph_text(paragraph, translations[para_id])
+                except Exception as e:
+                    # Fallback to simple text replacement
+                    paragraph.text = translations[para_id]
 
     def _apply_translations_to_tables(self, doc, translations: Dict[str, str]):
         """Apply translations to table cells"""
@@ -308,7 +312,11 @@ class DOCXProcessor(IDocumentProcessor):
                     for para_idx, paragraph in enumerate(cell.paragraphs):
                         key = f"table_{table_idx}_row_{row_idx}_cell_{cell_idx}_para_{para_idx}"
                         if key in translations:
-                            self._replace_paragraph_text(paragraph, translations[key])
+                            try:
+                                self._replace_paragraph_text(paragraph, translations[key])
+                            except Exception as e:
+                                # Fallback to simple text replacement
+                                paragraph.text = translations[key]
 
     def _replace_paragraph_text(self, paragraph, new_text: str):
         """Replace paragraph text while preserving formatting"""
@@ -329,8 +337,12 @@ class DOCXProcessor(IDocumentProcessor):
             })
         
         # Clear all runs but preserve paragraph
-        for run in list(paragraph.runs):
-            run._element.getparent().remove(run._element)
+        try:
+            for run in list(paragraph.runs):
+                run._element.getparent().remove(run._element)
+        except:
+            # Fallback: clear runs the simple way
+            paragraph.clear()
         
         # Add new text with preserved formatting from first run
         if original_runs_formatting:
