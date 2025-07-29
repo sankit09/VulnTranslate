@@ -317,7 +317,29 @@ class TranslationOrchestrator:
                 if result['success']:
                     translation_map[block_id] = result['translated_text']
                     if result.get('validation_result'):
-                        validation_results.append(result['validation_result'])
+                        validation_result = result['validation_result']
+                        # Convert dict to ValidationResult if needed
+                        if isinstance(validation_result, dict):
+                            from core.models import ValidationResult, TranslationQuality
+                            try:
+                                quality_map = {
+                                    'excellent': TranslationQuality.EXCELLENT,
+                                    'good': TranslationQuality.GOOD,
+                                    'needs_review': TranslationQuality.NEEDS_REVIEW,
+                                    'poor': TranslationQuality.POOR
+                                }
+                                quality = quality_map.get(validation_result.get('quality', 'good'), TranslationQuality.GOOD)
+                                validation_obj = ValidationResult(
+                                    similarity_score=validation_result.get('similarity_score', 0.0),
+                                    quality=quality,
+                                    technical_terms_preserved=True,
+                                    confidence_score=validation_result.get('confidence_score', 0.0)
+                                )
+                                validation_results.append(validation_obj)
+                            except Exception as e:
+                                print(f"Failed to convert validation result: {e}")
+                        else:
+                            validation_results.append(validation_result)
                 else:
                     # Keep original text if translation fails
                     original_text = next(
@@ -433,7 +455,16 @@ class TranslationOrchestrator:
         if not validation_results:
             return 0.0
         
-        scores = [result.similarity_score for result in validation_results if result.similarity_score > 0]
+        scores = []
+        for result in validation_results:
+            if isinstance(result, dict):
+                score = result.get('similarity_score', 0)
+            else:
+                score = getattr(result, 'similarity_score', 0)
+            
+            if score > 0:
+                scores.append(score)
+        
         return sum(scores) / len(scores) if scores else 0.0
 
     def test_components(self) -> Dict[str, Dict[str, Any]]:
