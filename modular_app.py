@@ -194,7 +194,19 @@ Required Environment Variables:
         
         if azure_key and azure_endpoint:
             if st.button("🚀 Initialize System", type="primary"):
+                # Force initialization regardless of current state
+                st.session_state.app_initialized = False
                 self._initialize_components()
+            
+            # Also provide a direct bypass if components look ready
+            if st.session_state.component_status and all(
+                status.get('status') == 'working' 
+                for status in st.session_state.component_status.values()
+            ):
+                st.info("✅ All components appear ready. You can force initialization if the button doesn't work:")
+                if st.button("🔄 Force Initialize", type="secondary"):
+                    st.session_state.app_initialized = True
+                    st.rerun()
 
     def _render_main_interface(self):
         """Render main translation interface"""
