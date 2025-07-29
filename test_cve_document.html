@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMware ESXi Security Advisory</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+        h1 { color: #d73027; font-size: 24px; }
+        h2 { color: #4575b4; font-size: 18px; margin-top: 30px; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .critical { background-color: #ffecec; font-weight: bold; }
+        ul { margin: 10px 0; padding-left: 30px; }
+        .meta { color: #666; font-style: italic; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <h1>VMware ESXi Security Advisory</h1>
+    
+    <p>VMware ESXi, vCenter Server, Workstation, and Fusion updates address multiple vulnerabilities including critical command execution flaws that could compromise system integrity.</p>
+    
+    <h2>Vulnerability Details</h2>
+    
+    <p><strong>CVE-2025-41225</strong> is an authenticated command-execution vulnerability in VMware vCenter Server that allows a privileged attacker to execute arbitrary commands. This type of CVE generally impacts system integrity and can lead to full administrative compromise if exploited in environments with inadequate privilege separation.</p>
+    
+    <h2>CVSS Score Rating</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Severity</th>
+                <th>Low</th>
+                <th>Medium</th>
+                <th>High</th>
+                <th>Critical</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>CVSS Score</strong></td>
+                <td>0.1-3.9</td>
+                <td>4.0-6.9</td>
+                <td>7.0-8.9</td>
+                <td class="critical">✓ 9.0-10.0</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h2>Security Impact</h2>
+    
+    <p>An attacker with sufficient permission could leverage this flaw to execute unauthorized commands, potentially leading to data breaches, lateral movement, or service disruption, undermining both confidentiality and system control.</p>
+    
+    <h2>Known Attack Vectors</h2>
+    
+    <p>A malicious actor with privileges to create or modify alarms and run script action may exploit this issue to run arbitrary commands on the vCenter Server.</p>
+    
+    <h2>Products Affected</h2>
+    
+    <ul>
+        <li>VMware ESXi</li>
+        <li>VMware vCenter Server</li>
+        <li>VMware Workstation Pro</li>
+        <li>VMware Fusion</li>
+        <li>VMware Cloud Foundation</li>
+        <li>VMware Telco Cloud Platform</li>
+    </ul>
+    
+    <h2>Additional Vulnerabilities</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>CVE ID</th>
+                <th>Type</th>
+                <th>CVSS Score</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>CVE-2025-41226</td>
+                <td>Denial of Service</td>
+                <td>6.8</td>
+                <td>Guest operations vulnerability causing VM availability issues</td>
+            </tr>
+            <tr>
+                <td>CVE-2025-41227</td>
+                <td>Denial of Service</td>
+                <td>5.5</td>
+                <td>Host process memory exhaustion vulnerability</td>
+            </tr>
+            <tr>
+                <td>CVE-2025-41228</td>
+                <td>Cross-Site Scripting</td>
+                <td>4.3</td>
+                <td>Reflected XSS in login interface</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="meta">
+        <p><strong>Publication date:</strong> 20 May 2025</p>
+        <p><strong>CVSSv3 Score Range:</strong> 4.3 – 8.8</p>
+        <p><strong>Reference:</strong> <a href="https://www.vmware.com/security/advisories/VMSA-2025-0010.html">VMSA-2025-0010</a></p>
+    </div>
+</body>
+</html>
