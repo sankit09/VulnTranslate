@@ -73,7 +73,8 @@ Translate the following text to Japanese:"""
                 temperature=0.1
             )
             
-            return response.choices[0].message.content.strip()
+            content = response.choices[0].message.content
+            return content.strip() if content else text
             
         except Exception as e:
             print(f"Translation error: {str(e)}")

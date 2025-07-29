@@ -30,7 +30,7 @@ class DocumentProcessor:
                 temp_file_path = temp_file.name
             
             # Load document with Aspose.Words
-            doc = aw.Document(temp_file_path)
+            doc = aw.Document(temp_file_path, aw.LoadOptions())
             
             # Extract text blocks with structure information
             content_blocks = []
