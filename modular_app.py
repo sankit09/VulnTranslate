@@ -426,6 +426,38 @@ Required Environment Variables:
                 if result['success']:
                     st.success("✅ Translation completed!")
                     
+                    # Store results for analytics
+                    st.session_state.last_original_text = content
+                    st.session_state.last_translation_text = result['translated_text']
+                    if result.get('validation_result'):
+                        st.session_state.last_validation_result = result['validation_result']
+                    
+                    # Show live quality metrics first
+                    if result.get('validation_result'):
+                        validation = result['validation_result']
+                        st.subheader("🎯 Live Translation Quality")
+                        qual_col1, qual_col2, qual_col3 = st.columns(3)
+                        
+                        with qual_col1:
+                            similarity = validation.get('similarity_score', 0)
+                            st.metric("Similarity Score", f"{similarity:.3f}")
+                            if similarity > 0.8:
+                                st.success("🌟 Excellent quality!")
+                            elif similarity > 0.7:
+                                st.info("✅ Good quality")
+                            elif similarity > 0.6:
+                                st.warning("⚠️ Moderate quality")
+                            else:
+                                st.error("❌ Needs improvement")
+                        
+                        with qual_col2:
+                            confidence = validation.get('confidence_score', 0)
+                            st.metric("Confidence", f"{confidence:.3f}")
+                        
+                        with qual_col3:
+                            terms_preserved = result.get('preservation_stats', {}).get('terms_preserved_count', 0)
+                            st.metric("Terms Protected", terms_preserved)
+                    
                     col1, col2 = st.columns(2)
                     with col1:
                         st.subheader("📋 Original Text")
