@@ -93,3 +93,12 @@ The application is designed for cloud deployment with the following consideratio
 - Memory-efficient document processing using BytesIO streams
 
 The system is architected to handle CVE documents specifically, with specialized prompts and technical term preservation logic to maintain the accuracy and integrity of cybersecurity documentation during translation.
+
+## Recent Changes
+
+### July 29, 2025
+- Fixed Aspose.Words ICU globalization issues by creating minimal translator
+- Added python-docx library for full DOCX format preservation  
+- Implemented DOCXTranslator service that maintains formatting, images, tables, and hyperlinks
+- Enhanced user interface with document preview and statistics
+- Preserved all document elements while translating only text content

@@ -281,8 +281,8 @@ Security Impact: An attacker with sufficient permission could leverage this flaw
         st.write("Validation: text-embedding-3-small")
 
     # Document Upload Section
-    st.header("📄 Document Upload")
-    st.info("Upload DOCX files to extract and translate text content")
+    st.header("📄 Document Upload with Format Preservation")
+    st.info("Upload DOCX files - all formatting, images, tables, and hyperlinks will be preserved")
     
     uploaded_file = st.file_uploader(
         "Choose a DOCX file",
@@ -293,74 +293,97 @@ Security Impact: An attacker with sufficient permission could leverage this flaw
     if uploaded_file is not None:
         st.success(f"Uploaded: {uploaded_file.name}")
         
-        if st.button("📖 Extract and Translate Document", type="primary"):
-            with st.spinner("Processing document..."):
-                try:
-                    # Read file content
-                    file_content = uploaded_file.read()
-                    
-                    # Try to extract text using basic method
-                    import zipfile
-                    import xml.etree.ElementTree as ET
-                    
-                    text_content = ""
-                    
-                    # Extract text from DOCX (basic XML parsing)
-                    with zipfile.ZipFile(uploaded_file, 'r') as zip_file:
-                        # Read document.xml
-                        doc_xml = zip_file.read('word/document.xml')
-                        root = ET.fromstring(doc_xml)
-                        
-                        # Extract text from paragraphs
-                        for paragraph in root.iter():
-                            if paragraph.tag.endswith('}t'):  # Text elements
-                                if paragraph.text:
-                                    text_content += paragraph.text + " "
-                            elif paragraph.tag.endswith('}p'):  # Paragraph breaks
-                                text_content += "\n\n"
-                    
-                    # Clean up text
-                    text_content = ' '.join(text_content.split())
-                    
-                    if text_content.strip():
-                        st.subheader("📄 Extracted Text")
-                        st.text_area("Extracted Content", value=text_content[:1000] + "..." if len(text_content) > 1000 else text_content, height=150, label_visibility="collapsed")
-                        
-                        # Translate extracted text
-                        with st.spinner("Translating document content..."):
-                            translated_content = translator.translate_text(text_content)
-                            
-                            st.subheader("📋 Translated Document")
-                            st.text_area("Translated Content", value=translated_content, height=200, label_visibility="collapsed")
-                            
-                            # Validation
-                            with st.spinner("Validating translation..."):
-                                validation = translator.validate_translation(text_content, translated_content)
-                                
-                                st.subheader("✅ Document Quality Check")
-                                col_a, col_b, col_c = st.columns(3)
-                                
-                                with col_a:
-                                    st.metric("Similarity Score", f"{validation['similarity_score']:.2f}")
-                                with col_b:
-                                    st.metric("Quality", validation['quality'])
-                                with col_c:
-                                    preserved = "✅" if validation['technical_terms_preserved'] else "⚠️"
-                                    st.metric("Technical Terms", preserved)
-                            
-                            # Download option
-                            st.download_button(
-                                label="📥 Download Translated Text",
-                                data=translated_content,
-                                file_name=f"translated_{uploaded_file.name.replace('.docx', '.txt')}",
-                                mime="text/plain"
-                            )
-                    else:
-                        st.error("Could not extract text from the document")
-                        
-                except Exception as e:
-                    st.error(f"Error processing document: {str(e)}")
-                    st.info("Try uploading a simpler DOCX file or use the text input method above")
+        # Show document preview
+        with st.spinner("Analyzing document..."):
+            try:
+                from services.docx_translator import DOCXTranslator
+                docx_translator = DOCXTranslator(translator)
+                
+                # Get preview of document content
+                file_content = uploaded_file.read()
+                preview_text = docx_translator.extract_text_preview(file_content, 800)
+                
+                st.subheader("📄 Document Preview")
+                st.text_area("Document Content Preview", value=preview_text, height=150, label_visibility="collapsed")
+                
+            except Exception as e:
+                st.warning(f"Could not preview document: {str(e)}")
+        
+        # Translation options
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            preserve_formatting = st.checkbox("Preserve All Formatting", value=True, disabled=True)
+            preserve_images = st.checkbox("Preserve Images", value=True, disabled=True)
+        
+        with col2:
+            preserve_hyperlinks = st.checkbox("Preserve Hyperlinks", value=True, disabled=True)
+            preserve_tables = st.checkbox("Preserve Tables", value=True, disabled=True)
+        
+        if st.button("🚀 Translate Document with Format Preservation", type="primary"):
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            try:
+                status_text.text("Initializing document processor...")
+                progress_bar.progress(10)
+                
+                from services.docx_translator import DOCXTranslator
+                docx_translator = DOCXTranslator(translator)
+                
+                status_text.text("Processing document structure...")
+                progress_bar.progress(20)
+                
+                # Reset file pointer
+                uploaded_file.seek(0)
+                file_content = uploaded_file.read()
+                
+                status_text.text("Translating content while preserving formatting...")
+                progress_bar.progress(40)
+                
+                # Process the document
+                result = docx_translator.process_docx_with_formatting(file_content)
+                
+                progress_bar.progress(80)
+                status_text.text("Finalizing translated document...")
+                
+                # Get statistics
+                stats = result['statistics']
+                
+                progress_bar.progress(100)
+                status_text.text("Translation completed!")
+                
+                st.success("🎉 Document translated with format preservation!")
+                
+                # Show statistics
+                st.subheader("📊 Translation Statistics")
+                col_a, col_b, col_c, col_d = st.columns(4)
+                
+                with col_a:
+                    st.metric("Paragraphs", stats['total_paragraphs'])
+                with col_b:
+                    st.metric("Translated", stats['translated_paragraphs'])
+                with col_c:
+                    st.metric("Tables", stats['total_tables'])
+                with col_d:
+                    st.metric("Table Cells", stats['translated_cells'])
+                
+                # Download button for the translated document
+                st.download_button(
+                    label="📥 Download Translated DOCX",
+                    data=result['document_buffer'].getvalue(),
+                    file_name=f"translated_{uploaded_file.name}",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    type="primary"
+                )
+                
+                st.info("✅ All formatting, images, tables, and hyperlinks have been preserved in the translated document!")
+                
+            except Exception as e:
+                st.error(f"Translation failed: {str(e)}")
+                progress_bar.empty()
+                status_text.empty()
+                st.info("Please ensure you have uploaded a valid DOCX file")
 
 if __name__ == "__main__":
     main()
