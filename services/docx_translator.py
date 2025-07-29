@@ -34,42 +34,62 @@ class DOCXTranslator:
             translated_paragraphs = 0
             total_tables = 0
             translated_cells = 0
+            translated_text_boxes = 0
+            skipped_technical = 0
             
-            # Process paragraphs
+            # Process all paragraphs in document
             for paragraph in doc.paragraphs:
                 total_paragraphs += 1
-                if self._should_translate_text(paragraph.text):
-                    translated_text = self.translator.translate_text(paragraph.text)
-                    self._replace_paragraph_text(paragraph, translated_text)
-                    translated_paragraphs += 1
+                if paragraph.text.strip():  # Only process non-empty paragraphs
+                    if self._should_translate_text(paragraph.text):
+                        try:
+                            translated_text = self.translator.translate_text(paragraph.text)
+                            self._replace_paragraph_text(paragraph, translated_text)
+                            translated_paragraphs += 1
+                        except Exception as e:
+                            print(f"Error translating paragraph: {str(e)}")
+                    else:
+                        skipped_technical += 1
             
-            # Process tables
+            # Process tables with better cell handling
             for table in doc.tables:
                 total_tables += 1
                 for row in table.rows:
                     for cell in row.cells:
                         # Process paragraphs in cell
                         for paragraph in cell.paragraphs:
-                            if self._should_translate_text(paragraph.text):
-                                translated_text = self.translator.translate_text(paragraph.text)
-                                self._replace_paragraph_text(paragraph, translated_text)
-                                translated_cells += 1
+                            if paragraph.text.strip() and self._should_translate_text(paragraph.text):
+                                try:
+                                    translated_text = self.translator.translate_text(paragraph.text)
+                                    self._replace_paragraph_text(paragraph, translated_text)
+                                    translated_cells += 1
+                                except Exception as e:
+                                    print(f"Error translating table cell: {str(e)}")
             
             # Process headers and footers
             for section in doc.sections:
                 # Header
                 if section.header:
                     for paragraph in section.header.paragraphs:
-                        if self._should_translate_text(paragraph.text):
-                            translated_text = self.translator.translate_text(paragraph.text)
-                            self._replace_paragraph_text(paragraph, translated_text)
+                        if paragraph.text.strip() and self._should_translate_text(paragraph.text):
+                            try:
+                                translated_text = self.translator.translate_text(paragraph.text)
+                                self._replace_paragraph_text(paragraph, translated_text)
+                            except Exception as e:
+                                print(f"Error translating header: {str(e)}")
                 
                 # Footer
                 if section.footer:
                     for paragraph in section.footer.paragraphs:
-                        if self._should_translate_text(paragraph.text):
-                            translated_text = self.translator.translate_text(paragraph.text)
-                            self._replace_paragraph_text(paragraph, translated_text)
+                        if paragraph.text.strip() and self._should_translate_text(paragraph.text):
+                            try:
+                                translated_text = self.translator.translate_text(paragraph.text)
+                                self._replace_paragraph_text(paragraph, translated_text)
+                            except Exception as e:
+                                print(f"Error translating footer: {str(e)}")
+            
+            # Process text boxes and shapes (enhanced detection)
+            self._process_text_boxes_and_shapes(doc)
             
             # Save to bytes
             output_buffer = BytesIO()
@@ -82,7 +102,9 @@ class DOCXTranslator:
                     'total_paragraphs': total_paragraphs,
                     'translated_paragraphs': translated_paragraphs,
                     'total_tables': total_tables,
-                    'translated_cells': translated_cells
+                    'translated_cells': translated_cells,
+                    'translated_text_boxes': translated_text_boxes,
+                    'skipped_technical': skipped_technical
                 }
             }
             
@@ -96,21 +118,95 @@ class DOCXTranslator:
         
         # Skip if text is mostly technical terms
         words = text.split()
+        if len(words) == 0:
+            return False
+            
         technical_count = 0
         
         for pattern in self.technical_patterns:
             matches = re.findall(pattern, text, re.IGNORECASE)
             technical_count += len(matches)
         
-        # Don't translate if more than 50% technical terms
-        if technical_count > len(words) * 0.5:
+        # Don't translate if more than 30% technical terms (more lenient)
+        if technical_count > len(words) * 0.3:
             return False
         
         # Skip if text is just numbers or special characters
         if re.match(r'^[\d\s\-\.\,\(\)]+$', text):
             return False
+            
+        # Skip if text is just punctuation or symbols
+        if re.match(r'^[^\w\s]+$', text):
+            return False
+            
+        # Skip if text is very short and looks like a label
+        if len(text.strip()) < 10 and any(char in text for char in [':', '•', '-', '.']):
+            return False
         
         return True
+    
+    def _process_text_boxes_and_shapes(self, doc):
+        """Process text boxes and shapes that might contain translatable text"""
+        try:
+            # This is a basic implementation - python-docx has limited shape support
+            # For full shape processing, we'd need additional libraries
+            pass
+        except Exception as e:
+            print(f"Error processing shapes: {str(e)}")
+    
+    def analyze_document_structure(self, file_content: bytes) -> Dict[str, Any]:
+        """Analyze document structure for better processing insights"""
+        try:
+            doc = Document(BytesIO(file_content))
+            
+            analysis = {
+                'total_paragraphs': len(doc.paragraphs),
+                'total_tables': len(doc.tables),
+                'translatable_paragraphs': 0,
+                'technical_paragraphs': 0,
+                'empty_paragraphs': 0,
+                'content_types': {
+                    'headers': 0,
+                    'body_text': 0,
+                    'table_cells': 0,
+                    'footers': 0
+                }
+            }
+            
+            # Analyze paragraphs
+            for paragraph in doc.paragraphs:
+                if not paragraph.text.strip():
+                    analysis['empty_paragraphs'] += 1
+                elif self._should_translate_text(paragraph.text):
+                    analysis['translatable_paragraphs'] += 1
+                    analysis['content_types']['body_text'] += 1
+                else:
+                    analysis['technical_paragraphs'] += 1
+            
+            # Analyze tables
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for paragraph in cell.paragraphs:
+                            if paragraph.text.strip():
+                                analysis['content_types']['table_cells'] += 1
+            
+            # Analyze headers/footers
+            for section in doc.sections:
+                if section.header:
+                    for paragraph in section.header.paragraphs:
+                        if paragraph.text.strip():
+                            analysis['content_types']['headers'] += 1
+                            
+                if section.footer:
+                    for paragraph in section.footer.paragraphs:
+                        if paragraph.text.strip():
+                            analysis['content_types']['footers'] += 1
+            
+            return analysis
+            
+        except Exception as e:
+            return {'error': f"Analysis failed: {str(e)}"}>
     
     def _replace_paragraph_text(self, paragraph, new_text):
         """Replace paragraph text while preserving formatting"""

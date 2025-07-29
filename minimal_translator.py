@@ -293,21 +293,59 @@ Security Impact: An attacker with sufficient permission could leverage this flaw
     if uploaded_file is not None:
         st.success(f"Uploaded: {uploaded_file.name}")
         
-        # Show document preview
-        with st.spinner("Analyzing document..."):
+        # Show document analysis and preview
+        with st.spinner("Analyzing document structure..."):
             try:
                 from services.docx_translator import DOCXTranslator
                 docx_translator = DOCXTranslator(translator)
                 
-                # Get preview of document content
+                # Get document analysis
                 file_content = uploaded_file.read()
-                preview_text = docx_translator.extract_text_preview(file_content, 800)
+                analysis = docx_translator.analyze_document_structure(file_content)
+                
+                if 'error' not in analysis:
+                    st.subheader("📊 Document Analysis")
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric("Total Paragraphs", analysis['total_paragraphs'])
+                    with col2:
+                        st.metric("Translatable", analysis['translatable_paragraphs'])
+                    with col3:
+                        st.metric("Technical/Skip", analysis['technical_paragraphs'])
+                    with col4:
+                        st.metric("Tables", analysis['total_tables'])
+                    
+                    # Content breakdown
+                    st.subheader("📄 Content Breakdown")
+                    content_col1, content_col2 = st.columns(2)
+                    
+                    with content_col1:
+                        st.write("**Content Types:**")
+                        st.write(f"• Body Text: {analysis['content_types']['body_text']}")
+                        st.write(f"• Table Cells: {analysis['content_types']['table_cells']}")
+                        st.write(f"• Headers: {analysis['content_types']['headers']}")
+                        st.write(f"• Footers: {analysis['content_types']['footers']}")
+                    
+                    with content_col2:
+                        st.write("**Processing Strategy:**")
+                        total_translatable = analysis['translatable_paragraphs']
+                        if total_translatable > 0:
+                            st.write(f"✅ Will translate {total_translatable} text sections")
+                            st.write(f"⏭️ Will preserve {analysis['technical_paragraphs']} technical sections")
+                            st.write("🎯 All formatting will be maintained")
+                        else:
+                            st.warning("⚠️ No translatable content detected")
+                
+                # Get preview of document content
+                preview_text = docx_translator.extract_text_preview(file_content, 500)
                 
                 st.subheader("📄 Document Preview")
-                st.text_area("Document Content Preview", value=preview_text, height=150, label_visibility="collapsed")
+                st.text_area("Document Content Preview", value=preview_text, height=120, label_visibility="collapsed")
                 
             except Exception as e:
-                st.warning(f"Could not preview document: {str(e)}")
+                st.warning(f"Could not analyze document: {str(e)}")
+                st.info("The document will still be processed, but without detailed analysis.")
         
         # Translation options
         col1, col2 = st.columns(2)
@@ -355,9 +393,9 @@ Security Impact: An attacker with sufficient permission could leverage this flaw
                 
                 st.success("🎉 Document translated with format preservation!")
                 
-                # Show statistics
-                st.subheader("📊 Translation Statistics")
-                col_a, col_b, col_c, col_d = st.columns(4)
+                # Show detailed statistics
+                st.subheader("📊 Translation Results")
+                col_a, col_b, col_c, col_d, col_e = st.columns(5)
                 
                 with col_a:
                     st.metric("Paragraphs", stats['total_paragraphs'])
@@ -367,6 +405,14 @@ Security Impact: An attacker with sufficient permission could leverage this flaw
                     st.metric("Tables", stats['total_tables'])
                 with col_d:
                     st.metric("Table Cells", stats['translated_cells'])
+                with col_e:
+                    st.metric("Skipped Tech", stats.get('skipped_technical', 0))
+                
+                # Translation success rate
+                if stats['total_paragraphs'] > 0:
+                    success_rate = (stats['translated_paragraphs'] / stats['total_paragraphs']) * 100
+                    st.progress(success_rate / 100)
+                    st.caption(f"Translation Coverage: {success_rate:.1f}%")
                 
                 # Download button for the translated document
                 st.download_button(
