@@ -378,7 +378,7 @@ class TranslationOrchestrator:
 
     def _update_stats(self, processing_time: float, success: bool):
         """Update processing statistics"""
-        self.stats['total_translations'] += 1
+        # Update total processing time first
         self.stats['total_processing_time'] += processing_time
         
         if success:
@@ -386,9 +386,14 @@ class TranslationOrchestrator:
         else:
             self.stats['failed_translations'] += 1
         
-        self.stats['average_processing_time'] = (
-            self.stats['total_processing_time'] / self.stats['total_translations']
-        )
+        # Calculate total translations
+        total_translations = self.stats['successful_translations'] + self.stats['failed_translations']
+        
+        # Update average processing time
+        if total_translations > 0:
+            self.stats['average_processing_time'] = (
+                self.stats['total_processing_time'] / total_translations
+            )
 
     def _calculate_average_validation_score(self, validation_results: List[ValidationResult]) -> float:
         """Calculate average validation score"""

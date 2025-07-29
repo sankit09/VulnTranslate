@@ -75,6 +75,13 @@ class CVETranslationApp:
         
         # Check if already initialized
         if st.session_state.app_initialized and self.orchestrator and self.docx_processor and self.html_processor:
+            # Ensure statistics are properly initialized
+            if not hasattr(self, '_stats_initialized'):
+                self._stats_initialized = True
+                # Reset statistics to ensure fresh tracking
+                if hasattr(self.orchestrator, 'reset_statistics'):
+                    self.orchestrator.reset_statistics()
+            
             self._render_main_interface()
         else:
             self._render_setup_interface()

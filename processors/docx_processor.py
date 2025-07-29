@@ -316,27 +316,37 @@ class DOCXProcessor(IDocumentProcessor):
             paragraph.text = new_text
             return
         
-        # Clear existing runs and create new one with original formatting
-        original_run = paragraph.runs[0] if paragraph.runs else None
-        
-        # Clear all runs
+        # Store original formatting from all runs
+        original_runs_formatting = []
         for run in paragraph.runs:
-            run.clear()
+            original_runs_formatting.append({
+                'bold': run.bold,
+                'italic': run.italic,
+                'underline': run.underline,
+                'font_size': run.font.size,
+                'font_name': run.font.name,
+                'text': run.text
+            })
         
-        # Add new text with preserved formatting
-        if original_run:
+        # Clear all runs but preserve paragraph
+        for run in list(paragraph.runs):
+            run._element.getparent().remove(run._element)
+        
+        # Add new text with preserved formatting from first run
+        if original_runs_formatting:
             new_run = paragraph.add_run(new_text)
-            # Copy formatting from original run
-            if original_run.bold is not None:
-                new_run.bold = original_run.bold
-            if original_run.italic is not None:
-                new_run.italic = original_run.italic
-            if original_run.underline is not None:
-                new_run.underline = original_run.underline
-            if original_run.font.size:
-                new_run.font.size = original_run.font.size
-            if original_run.font.name:
-                new_run.font.name = original_run.font.name
+            first_run_format = original_runs_formatting[0]
+            
+            if first_run_format['bold'] is not None:
+                new_run.bold = first_run_format['bold']
+            if first_run_format['italic'] is not None:
+                new_run.italic = first_run_format['italic']
+            if first_run_format['underline'] is not None:
+                new_run.underline = first_run_format['underline']
+            if first_run_format['font_size']:
+                new_run.font.size = first_run_format['font_size']
+            if first_run_format['font_name']:
+                new_run.font.name = first_run_format['font_name']
         else:
             paragraph.add_run(new_text)
         
