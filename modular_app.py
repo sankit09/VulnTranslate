@@ -63,9 +63,7 @@ class CVETranslationApp:
         # Initialize components
         self._render_system_status()
         
-        if not st.session_state.app_initialized:
-            self._initialize_components()
-        
+        # Check if already initialized
         if st.session_state.app_initialized and self.orchestrator and self.docx_processor and self.html_processor:
             self._render_main_interface()
         else:
