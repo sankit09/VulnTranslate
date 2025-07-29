@@ -582,12 +582,17 @@ Required Environment Variables:
     def _process_document_translation_with_processor(self, file_content: bytes, filename: str, file_extension: str, processor, validate: bool, show_preview: bool):
         """Process document translation with specified processor"""
         with st.spinner("Translating document..."):
-            result = self.orchestrator.translate_document(
-                file_content=file_content,
-                file_extension=file_extension,
-                document_processor=processor,
-                validate=validate
-            )
+            try:
+                result = self.orchestrator.translate_document(
+                    file_content=file_content,
+                    file_extension=file_extension,
+                    document_processor=processor,
+                    validate=validate
+                )
+            except Exception as e:
+                st.error(f"❌ Translation error: {str(e)}")
+                st.error(f"❌ Error type: {type(e).__name__}")
+                return
             
             if result.success:
                 st.success("✅ Document translation completed!")
