@@ -19,6 +19,7 @@ from providers.cve_term_preserver import CVETermPreserver
 
 # Processor imports
 from processors.docx_processor import DOCXProcessor
+from processors.html_processor import HTMLProcessor
 
 # Validation imports
 from validation.semantic_validator import SemanticValidator
@@ -33,6 +34,7 @@ class CVETranslationApp:
     def __init__(self):
         self.orchestrator: Optional[TranslationOrchestrator] = None
         self.docx_processor: Optional[DOCXProcessor] = None
+        self.html_processor: Optional[HTMLProcessor] = None
         self.config = TranslationConfig()
         self._initialize_session_state()
 
@@ -64,7 +66,7 @@ class CVETranslationApp:
         if not st.session_state.app_initialized:
             self._initialize_components()
         
-        if st.session_state.app_initialized and self.orchestrator and self.docx_processor:
+        if st.session_state.app_initialized and self.orchestrator and self.docx_processor and self.html_processor:
             self._render_main_interface()
         else:
             self._render_setup_interface()
@@ -135,6 +137,7 @@ class CVETranslationApp:
                 
                 # Initialize processors
                 self.docx_processor = DOCXProcessor()
+                self.html_processor = HTMLProcessor()
                 
                 # Initialize orchestrator
                 self.orchestrator = TranslationOrchestrator(
@@ -245,19 +248,84 @@ Required Environment Variables:
         """Render document translation interface"""
         st.header("📄 Document Translation")
         
-        uploaded_file = st.file_uploader(
-            "Upload CVE Document",
-            type=['docx'],
-            help="Upload DOCX files containing English CVE documentation"
-        )
+        # File type selection
+        st.subheader("📁 Choose Upload Method")
         
-        if uploaded_file:
-            st.success(f"📄 Uploaded: {uploaded_file.name}")
+        upload_tab1, upload_tab2, upload_tab3 = st.tabs([
+            "📄 Upload Files", 
+            "📝 Paste Text/HTML", 
+            "🔗 From URL"
+        ])
+        
+        with upload_tab1:
+            st.markdown("**Supported file formats:**")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write("• 📄 DOCX - Microsoft Word documents")
+                st.write("• 🌐 HTML - Web pages and documents")
+            with col2:
+                st.write("• Full format preservation")
+                st.write("• Tables, images, and links maintained")
             
-            # Document analysis
-            with st.spinner("Analyzing document structure..."):
+            uploaded_file = st.file_uploader(
+                "Upload Document",
+                type=['docx', 'html', 'htm'],
+                help="Upload DOCX or HTML files containing English CVE documentation"
+            )
+            
+            if uploaded_file:
+                self._process_uploaded_file(uploaded_file)
+        
+        with upload_tab2:
+            st.markdown("**Paste content directly:**")
+            
+            format_choice = st.selectbox(
+                "Content format:",
+                ["Plain Text", "HTML Content"],
+                help="Choose the format of your pasted content"
+            )
+            
+            pasted_content = st.text_area(
+                f"Paste your {format_choice.lower()} here:",
+                height=300,
+                placeholder="Paste your CVE document content here..."
+            )
+            
+            if pasted_content and st.button("🚀 Process Pasted Content", type="primary"):
+                self._process_pasted_content(pasted_content, format_choice)
+        
+        with upload_tab3:
+            st.markdown("**Load from URL:**")
+            url_input = st.text_input(
+                "Enter URL:",
+                placeholder="https://example.com/cve-document.html"
+            )
+            
+            if url_input and st.button("📥 Load from URL", type="primary"):
+                self._process_url_content(url_input)
+
+    def _process_uploaded_file(self, uploaded_file):
+        """Process uploaded file based on its type"""
+        st.success(f"📄 Uploaded: {uploaded_file.name}")
+        
+        # Determine file type and processor
+        file_extension = '.' + uploaded_file.name.split('.')[-1].lower()
+        processor = None
+        
+        if file_extension in ['.docx']:
+            processor = self.docx_processor
+        elif file_extension in ['.html', '.htm']:
+            processor = self.html_processor
+        
+        if not processor:
+            st.error(f"❌ Unsupported file type: {file_extension}")
+            return
+        
+        # Document analysis
+        with st.spinner("Analyzing document structure..."):
+            try:
                 file_content = uploaded_file.read()
-                analysis = self._analyze_document(file_content)
+                analysis = self._analyze_document_with_processor(file_content, processor)
                 
                 if analysis:
                     self._display_document_analysis(analysis)
@@ -270,7 +338,191 @@ Required Environment Variables:
                         show_preview = st.checkbox("Show translation preview", value=True, key="doc_preview")
                     
                     if st.button("🚀 Translate Document", type="primary"):
-                        self._process_document_translation(file_content, uploaded_file.name, validate_doc, show_preview)
+                        self._process_document_translation_with_processor(
+                            file_content, uploaded_file.name, file_extension, processor, validate_doc, show_preview
+                        )
+            except Exception as e:
+                st.error(f"❌ Failed to analyze document: {str(e)}")
+
+    def _process_pasted_content(self, content: str, format_choice: str):
+        """Process pasted text or HTML content"""
+        with st.spinner("Processing pasted content..."):
+            if format_choice == "Plain Text":
+                # Process as direct text translation
+                result = self.orchestrator.translate_text(
+                    text=content,
+                    validate=True,
+                    preserve_terms=True
+                )
+                
+                if result['success']:
+                    st.success("✅ Translation completed!")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.subheader("📋 Original Text")
+                        st.text_area("English", content, height=300, label_visibility="collapsed")
+                    with col2:
+                        st.subheader("📋 Translation")
+                        st.text_area("Japanese", result['translated_text'], height=300, label_visibility="collapsed")
+                else:
+                    st.error(f"❌ Translation failed: {result['error']}")
+            
+            elif format_choice == "HTML Content":
+                # Process as HTML document
+                html_bytes = content.encode('utf-8')
+                try:
+                    analysis = self._analyze_document_with_processor(html_bytes, self.html_processor)
+                    
+                    if analysis:
+                        self._display_document_analysis(analysis)
+                        
+                        if st.button("🚀 Translate HTML Content", type="primary"):
+                            result = self.orchestrator.translate_document(
+                                file_content=html_bytes,
+                                file_extension='.html',
+                                document_processor=self.html_processor,
+                                validate=True
+                            )
+                            
+                            if result.success:
+                                st.success("✅ HTML translation completed!")
+                                translated_html = result.translated_document.decode('utf-8')
+                                
+                                st.subheader("📋 Translated HTML")
+                                st.code(translated_html, language="html")
+                                
+                                # Download option
+                                st.download_button(
+                                    label="📥 Download Translated HTML",
+                                    data=result.translated_document,
+                                    file_name="translated_content.html",
+                                    mime="text/html"
+                                )
+                            else:
+                                st.error(f"❌ HTML translation failed: {result.error_message}")
+                except Exception as e:
+                    st.error(f"❌ Failed to process HTML content: {str(e)}")
+
+    def _process_url_content(self, url: str):
+        """Process content from URL"""
+        try:
+            import requests
+            
+            with st.spinner(f"Loading content from {url}..."):
+                response = requests.get(url, timeout=10)
+                response.raise_for_status()
+                
+                content_type = response.headers.get('content-type', '').lower()
+                
+                if 'html' in content_type:
+                    # Process as HTML
+                    analysis = self._analyze_document_with_processor(response.content, self.html_processor)
+                    
+                    if analysis:
+                        st.success(f"✅ Loaded HTML content from {url}")
+                        self._display_document_analysis(analysis)
+                        
+                        if st.button("🚀 Translate URL Content", type="primary"):
+                            result = self.orchestrator.translate_document(
+                                file_content=response.content,
+                                file_extension='.html',
+                                document_processor=self.html_processor,
+                                validate=True
+                            )
+                            
+                            if result.success:
+                                st.success("✅ URL content translation completed!")
+                                st.download_button(
+                                    label="📥 Download Translated HTML",
+                                    data=result.translated_document,
+                                    file_name=f"translated_{url.split('/')[-1]}.html",
+                                    mime="text/html"
+                                )
+                            else:
+                                st.error(f"❌ Translation failed: {result.error_message}")
+                else:
+                    # Process as plain text
+                    text_content = response.text
+                    st.success(f"✅ Loaded text content from {url}")
+                    
+                    if st.button("🚀 Translate URL Text", type="primary"):
+                        result = self.orchestrator.translate_text(
+                            text=text_content,
+                            validate=True,
+                            preserve_terms=True
+                        )
+                        
+                        if result['success']:
+                            st.success("✅ Translation completed!")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.subheader("📋 Original Content")
+                                st.text_area("English", text_content[:2000] + "..." if len(text_content) > 2000 else text_content, height=300)
+                            with col2:
+                                st.subheader("📋 Translation")
+                                st.text_area("Japanese", result['translated_text'], height=300)
+                        else:
+                            st.error(f"❌ Translation failed: {result['error']}")
+                            
+        except requests.RequestException as e:
+            st.error(f"❌ Failed to load URL: {str(e)}")
+        except Exception as e:
+            st.error(f"❌ Error processing URL content: {str(e)}")
+
+    def _analyze_document_with_processor(self, file_content: bytes, processor) -> Dict[str, Any]:
+        """Analyze document with specified processor"""
+        try:
+            return processor.extract_content(file_content)
+        except Exception as e:
+            st.error(f"❌ Document analysis failed: {str(e)}")
+            return None
+
+    def _process_document_translation_with_processor(self, file_content: bytes, filename: str, file_extension: str, processor, validate: bool, show_preview: bool):
+        """Process document translation with specified processor"""
+        with st.spinner("Translating document..."):
+            result = self.orchestrator.translate_document(
+                file_content=file_content,
+                file_extension=file_extension,
+                document_processor=processor,
+                validate=validate
+            )
+            
+            if result.success:
+                st.success("✅ Document translation completed!")
+                
+                # Processing statistics
+                stats = result.processing_stats
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Total Blocks", stats['total_blocks'])
+                with col2:
+                    st.metric("Translated", stats['successful_translations'])
+                with col3:
+                    st.metric("Failed", stats['failed_translations'])
+                with col4:
+                    st.metric("Processing Time", f"{stats['processing_time']:.1f}s")
+                
+                # Download translated document
+                if result.translated_document:
+                    file_extension_clean = file_extension.replace('.', '')
+                    mime_types = {
+                        'docx': "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        'html': "text/html",
+                        'htm': "text/html"
+                    }
+                    
+                    st.download_button(
+                        label="📥 Download Translated Document",
+                        data=result.translated_document,
+                        file_name=f"translated_{filename}",
+                        mime=mime_types.get(file_extension_clean, "application/octet-stream")
+                    )
+                
+            else:
+                st.error(f"❌ Document translation failed: {result.error_message}")
 
     def _render_analytics(self):
         """Render analytics and statistics"""

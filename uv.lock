@@ -898,6 +898,7 @@ dependencies = [
     { name = "numpy" },
     { name = "openai" },
     { name = "python-docx" },
+    { name = "requests" },
     { name = "streamlit" },
 ]
 
@@ -908,6 +909,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.3.2" },
     { name = "openai", specifier = ">=1.97.1" },
     { name = "python-docx", specifier = ">=1.2.0" },
+    { name = "requests", specifier = ">=2.32.4" },
     { name = "streamlit", specifier = ">=1.47.1" },
 ]
 
