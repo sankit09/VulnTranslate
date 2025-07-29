@@ -10,7 +10,7 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-The application follows a service-oriented architecture with clear separation of concerns:
+The application follows an **agentic multi-agent architecture** with autonomous decision-making and intelligent coordination between specialized agents:
 
 - **Frontend**: Streamlit web application providing user interface
 - **Services Layer**: Core business logic for document processing, translation, and validation
@@ -157,3 +157,11 @@ The system is architected to handle CVE documents specifically, with specialized
 - **Structured Document Processing**: Maintains original document hierarchy and formatting
 - **Real-time Analytics**: Live statistics showing protected terms and translation progress
 - **Enterprise Error Handling**: Multi-layer fallback systems for robust document processing
+
+#### **Agentic System Characteristics**
+- **Autonomous Decision Making**: Intelligent content assessment and processing strategy selection
+- **Multi-Agent Coordination**: Specialized agents (Translation, Protection, Quality, Document, Analytics)
+- **Adaptive Processing**: Content-aware chunking and error recovery mechanisms
+- **Knowledge-Based Reasoning**: Domain expertise in cybersecurity and Japanese language standards
+- **Self-Monitoring**: Real-time performance analytics and quality validation
+- **Goal-Oriented Behavior**: Maintains technical accuracy while optimizing readability and format preservation
