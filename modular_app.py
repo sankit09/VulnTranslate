@@ -442,13 +442,13 @@ Required Environment Variables:
                             similarity = validation.get('similarity_score', 0)
                             st.metric("Similarity Score", f"{similarity:.3f}")
                             if similarity > 0.8:
-                                st.success("🌟 Excellent quality!")
+                                st.success("Excellent quality!")
                             elif similarity > 0.7:
-                                st.info("✅ Good quality")
+                                st.info("Good quality")
                             elif similarity > 0.6:
-                                st.warning("⚠️ Moderate quality")
+                                st.warning("Moderate quality")
                             else:
-                                st.error("❌ Needs improvement")
+                                st.error("Needs improvement")
                         
                         with qual_col2:
                             confidence = validation.get('confidence_score', 0)
@@ -844,9 +844,11 @@ Required Environment Variables:
                     
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("Similarity Score", f"{validation.similarity_score:.3f}")
+                        similarity = validation.get('similarity_score', 0) if isinstance(validation, dict) else getattr(validation, 'similarity_score', 0)
+                        st.metric("Similarity Score", f"{similarity:.3f}")
                     with col2:
-                        st.metric("Quality", validation.quality.value)
+                        quality = validation.get('quality', 'unknown') if isinstance(validation, dict) else getattr(validation, 'quality', 'unknown')
+                        st.metric("Quality", quality)
                     with col3:
                         st.metric("Terms Preserved", "✅" if result['terms_preserved'] else "⚠️")
                 
