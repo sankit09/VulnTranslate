@@ -46,6 +46,12 @@ class DOCXProcessor(IDocumentProcessor):
                 if content_block:
                     content_blocks.append(content_block)
             
+            # Process text boxes and shapes
+            for shape_idx, shape in enumerate(self._get_document_shapes(doc)):
+                shape_content = self._process_shape_text(shape, shape_idx)
+                if shape_content:
+                    content_blocks.extend(shape_content)
+            
             # Process tables
             for table_idx, table in enumerate(doc.tables):
                 table_data = self._process_table(table, table_idx)
@@ -154,6 +160,30 @@ class DOCXProcessor(IDocumentProcessor):
         }
         
         return content_block
+
+    def _get_document_shapes(self, doc):
+        """Extract shapes and text boxes from document"""
+        shapes = []
+        try:
+            # Get shapes from document sections
+            for section in doc.sections:
+                # Access the underlying XML to find text boxes and shapes
+                for element in section._sectPr.xpath('.//w:drawing'):
+                    shapes.append(element)
+        except Exception:
+            pass  # If we can't access shapes, continue without them
+        return shapes
+
+    def _process_shape_text(self, shape, shape_idx):
+        """Extract text from shapes and text boxes"""
+        try:
+            content_blocks = []
+            # This is a simplified version - full implementation would need
+            # more complex XML parsing to extract text from shapes
+            # For now, we'll focus on improving paragraph and table processing
+            return content_blocks
+        except Exception:
+            return []
 
     def _process_table(self, table, table_idx) -> Dict[str, Any]:
         """Process table structure and content"""
@@ -292,6 +322,23 @@ class DOCXProcessor(IDocumentProcessor):
         # Clear all runs
         for run in paragraph.runs:
             run.clear()
+        
+        # Add new text with preserved formatting
+        if original_run:
+            new_run = paragraph.add_run(new_text)
+            # Copy formatting from original run
+            if original_run.bold is not None:
+                new_run.bold = original_run.bold
+            if original_run.italic is not None:
+                new_run.italic = original_run.italic
+            if original_run.underline is not None:
+                new_run.underline = original_run.underline
+            if original_run.font.size:
+                new_run.font.size = original_run.font.size
+            if original_run.font.name:
+                new_run.font.name = original_run.font.name
+        else:
+            paragraph.add_run(new_text)
         
         # Add new text with original formatting
         if original_run:

@@ -56,6 +56,8 @@ class TranslationOrchestrator:
         start_time = time.time()
         
         try:
+            # Update statistics
+            self.stats['total_translations'] += 1
             # Step 1: Prepare text and preserve technical terms
             if preserve_terms:
                 preservation_map = self.term_preserver.create_preservation_map(text)
@@ -170,6 +172,50 @@ class TranslationOrchestrator:
                     })
         
         return results
+
+    def _update_stats(self, processing_time: float, success: bool):
+        """Update processing statistics"""
+        if success:
+            self.stats['successful_translations'] += 1
+        else:
+            self.stats['failed_translations'] += 1
+        
+        self.stats['total_processing_time'] += processing_time
+        
+        # Calculate average
+        total_requests = self.stats['successful_translations'] + self.stats['failed_translations']
+        if total_requests > 0:
+            self.stats['average_processing_time'] = (
+                self.stats['total_processing_time'] / total_requests
+            )
+
+    def get_processing_statistics(self) -> Dict[str, Any]:
+        """Get current processing statistics"""
+        return {
+            'session_stats': {
+                'total_translations': self.stats['successful_translations'] + self.stats['failed_translations'],
+                'successful_translations': self.stats['successful_translations'],
+                'failed_translations': self.stats['failed_translations'],
+                'average_processing_time': self.stats['average_processing_time']
+            },
+            'performance_metrics': {
+                'total_processing_time': self.stats['total_processing_time'],
+                'success_rate': (
+                    self.stats['successful_translations'] / 
+                    max(1, self.stats['successful_translations'] + self.stats['failed_translations'])
+                ) * 100
+            }
+        }
+
+    def reset_statistics(self):
+        """Reset processing statistics"""
+        self.stats = {
+            'total_translations': 0,
+            'successful_translations': 0,
+            'failed_translations': 0,
+            'total_processing_time': 0.0,
+            'average_processing_time': 0.0
+        }
 
     def translate_document(
         self,
