@@ -206,38 +206,7 @@ class DOCXTranslator:
             return analysis
             
         except Exception as e:
-            return {'error': f"Analysis failed: {str(e)}"}
-    
-    def extract_text_preview(self, file_content: bytes, max_chars: int = 1000) -> str:
-        """Extract text preview from DOCX for display"""
-        try:
-            doc = Document(BytesIO(file_content))
-            text_content = ""
-            
-            # Extract from paragraphs
-            for paragraph in doc.paragraphs:
-                if paragraph.text.strip():
-                    text_content += paragraph.text + "\n\n"
-                    if len(text_content) > max_chars:
-                        break
-            
-            # Extract from tables if not enough text
-            if len(text_content) < max_chars:
-                for table in doc.tables:
-                    for row in table.rows:
-                        for cell in row.cells:
-                            for paragraph in cell.paragraphs:
-                                if paragraph.text.strip():
-                                    text_content += paragraph.text + " | "
-                        text_content += "\n"
-                    text_content += "\n"
-                    if len(text_content) > max_chars:
-                        break
-            
-            return text_content[:max_chars] + ("..." if len(text_content) > max_chars else "")
-            
-        except Exception as e:
-            return f"Error extracting text: {str(e)}"
+            return {'error': f"Analysis failed: {str(e)}"}>
     
     def _replace_paragraph_text(self, paragraph, new_text):
         """Replace paragraph text while preserving formatting"""
@@ -282,3 +251,34 @@ class DOCXTranslator:
             first_run.font.size = size
         if name is not None:
             first_run.font.name = name
+    
+    def extract_text_preview(self, file_content: bytes, max_chars: int = 1000) -> str:
+        """Extract text preview from DOCX for display"""
+        try:
+            doc = Document(BytesIO(file_content))
+            text_content = ""
+            
+            # Extract from paragraphs
+            for paragraph in doc.paragraphs:
+                if paragraph.text.strip():
+                    text_content += paragraph.text + "\n\n"
+                    if len(text_content) > max_chars:
+                        break
+            
+            # Extract from tables if not enough text
+            if len(text_content) < max_chars:
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            for paragraph in cell.paragraphs:
+                                if paragraph.text.strip():
+                                    text_content += paragraph.text + " | "
+                        text_content += "\n"
+                    text_content += "\n"
+                    if len(text_content) > max_chars:
+                        break
+            
+            return text_content[:max_chars] + ("..." if len(text_content) > max_chars else "")
+            
+        except Exception as e:
+            return f"Error extracting text: {str(e)}"
