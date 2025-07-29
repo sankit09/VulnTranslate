@@ -63,6 +63,16 @@ class CVETranslationApp:
         # Initialize components
         self._render_system_status()
         
+        # Force initialization if components are available in session state
+        if (st.session_state.component_status and 
+            all(status.get('status') == 'working' for status in st.session_state.component_status.values())):
+            # Auto-initialize components since they're already working
+            if not hasattr(self, 'orchestrator') or self.orchestrator is None:
+                try:
+                    self._auto_initialize_components()
+                except:
+                    pass
+        
         # Check if already initialized
         if st.session_state.app_initialized and self.orchestrator and self.docx_processor and self.html_processor:
             self._render_main_interface()
@@ -169,6 +179,34 @@ class CVETranslationApp:
             st.info("Please check your API keys in the environment variables.")
             import traceback
             st.code(traceback.format_exc())
+
+    def _auto_initialize_components(self):
+        """Auto-initialize components when they show as working"""
+        try:
+            # Initialize providers
+            translator = AzureOpenAITranslator(self.config)
+            embedding_provider = OpenAIEmbeddingProvider()
+            term_preserver = CVETermPreserver()
+            
+            # Initialize validator
+            validator = SemanticValidator(embedding_provider, self.config.quality_threshold)
+            
+            # Initialize processors
+            self.docx_processor = DOCXProcessor()
+            self.html_processor = HTMLProcessor()
+            
+            # Initialize orchestrator
+            self.orchestrator = TranslationOrchestrator(
+                translator=translator,
+                validator=validator,
+                term_preserver=term_preserver,
+                config=self.config
+            )
+            
+            st.session_state.app_initialized = True
+            
+        except Exception:
+            pass  # Silent fail for auto-initialization
 
     def _render_setup_interface(self):
         """Render setup interface for configuration"""
