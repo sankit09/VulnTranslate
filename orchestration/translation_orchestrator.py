@@ -56,7 +56,7 @@ class TranslationOrchestrator:
         start_time = time.time()
         
         try:
-            # Update statistics
+            # Update total translations counter
             self.stats['total_translations'] += 1
             # Step 1: Prepare text and preserve technical terms with token protection
             if preserve_terms:
@@ -424,7 +424,15 @@ class TranslationOrchestrator:
         
         # Test validator
         try:
-            self.validator.calculate_similarity("test", "test")
+            # Use the correct method name from the validator interface
+            from core.models import ValidationRequest
+            test_validation = ValidationRequest(
+                original_text="test",
+                translated_text="test",
+                source_language=LanguageCode.ENGLISH,
+                target_language=LanguageCode.JAPANESE
+            )
+            self.validator.validate(test_validation)
             results['validator'] = {'status': 'healthy'}
         except Exception as e:
             results['validator'] = {'status': 'unhealthy', 'error': str(e)}
