@@ -406,6 +406,38 @@ class TranslationOrchestrator:
         scores = [result.similarity_score for result in validation_results if result.similarity_score > 0]
         return sum(scores) / len(scores) if scores else 0.0
 
+    def test_components(self) -> Dict[str, Dict[str, Any]]:
+        """Test health of all components"""
+        results = {}
+        
+        # Test translator
+        try:
+            test_request = TranslationRequest(
+                text="Test",
+                source_language=LanguageCode.ENGLISH,
+                target_language=LanguageCode.JAPANESE
+            )
+            self.translator.translate(test_request)
+            results['translator'] = {'status': 'healthy'}
+        except Exception as e:
+            results['translator'] = {'status': 'unhealthy', 'error': str(e)}
+        
+        # Test validator
+        try:
+            self.validator.calculate_similarity("test", "test")
+            results['validator'] = {'status': 'healthy'}
+        except Exception as e:
+            results['validator'] = {'status': 'unhealthy', 'error': str(e)}
+        
+        # Test term preserver
+        try:
+            self.term_preserver.create_preservation_map("CVE-2024-1234")
+            results['term_preserver'] = {'status': 'healthy'}
+        except Exception as e:
+            results['term_preserver'] = {'status': 'unhealthy', 'error': str(e)}
+        
+        return results
+
     def reset_statistics(self):
         """Reset processing statistics"""
         self.stats = {
