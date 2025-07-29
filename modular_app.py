@@ -597,7 +597,52 @@ Required Environment Variables:
             if result.success:
                 st.success("✅ Document translation completed!")
                 
+                # Show validation scores if available
+                if result.validation_results and len(result.validation_results) > 0:
+                    st.subheader("🎯 Document Translation Quality")
+                    
+                    # Calculate average metrics from all validation results
+                    similarities = []
+                    confidences = []
+                    
+                    for validation in result.validation_results:
+                        if isinstance(validation, dict):
+                            sim = validation.get('similarity_score', 0)
+                            conf = validation.get('confidence_score', 0)
+                        else:
+                            sim = getattr(validation, 'similarity_score', 0)
+                            conf = getattr(validation, 'confidence_score', 0)
+                        
+                        if sim > 0:
+                            similarities.append(sim)
+                        if conf > 0:
+                            confidences.append(conf)
+                    
+                    if similarities:
+                        avg_similarity = sum(similarities) / len(similarities)
+                        avg_confidence = sum(confidences) / len(confidences) if confidences else 0
+                        
+                        qual_col1, qual_col2, qual_col3 = st.columns(3)
+                        
+                        with qual_col1:
+                            st.metric("Avg Similarity Score", f"{avg_similarity:.3f}")
+                            if avg_similarity > 0.8:
+                                st.success("Excellent quality!")
+                            elif avg_similarity > 0.7:
+                                st.info("Good quality")
+                            elif avg_similarity > 0.6:
+                                st.warning("Moderate quality")
+                            else:
+                                st.error("Needs improvement")
+                        
+                        with qual_col2:
+                            st.metric("Avg Confidence", f"{avg_confidence:.3f}")
+                        
+                        with qual_col3:
+                            st.metric("Validated Blocks", len(similarities))
+                
                 # Processing statistics
+                st.subheader("📊 Processing Statistics")
                 stats = result.processing_stats
                 col1, col2, col3, col4 = st.columns(4)
                 
