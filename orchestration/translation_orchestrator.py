@@ -58,10 +58,13 @@ class TranslationOrchestrator:
         try:
             # Update statistics
             self.stats['total_translations'] += 1
-            # Step 1: Prepare text and preserve technical terms
+            # Step 1: Prepare text and preserve technical terms with token protection
             if preserve_terms:
                 preservation_map = self.term_preserver.create_preservation_map(text)
-                processed_text = self.term_preserver.apply_preservation_map(text, preservation_map)
+                processed_text = self.term_preserver.apply_protection_tokens(text, preservation_map)
+                # Log preservation details for debugging
+                if preservation_map:
+                    print(f"Protected {len(preservation_map)} terms with tokens")
             else:
                 processed_text = text
                 preservation_map = {}

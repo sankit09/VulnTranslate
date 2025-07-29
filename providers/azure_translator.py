@@ -83,6 +83,12 @@ TRANSLATION PROTOCOL:
   * Incident response → インシデント対応
 - Compliance frameworks: Keep English (SOX, GDPR, HIPAA, etc.)
 
+🚨 CRITICAL CONSTRAINTS:
+- Do not invent or add extra CVEs, names, or product lines not present in the original input
+- Translate ONLY what exists in the source text
+- Never hallucinate additional vulnerability information
+- Preserve exact technical identifiers and version numbers
+
 Translate the following CVE-related text to professional Japanese:"""
 
     def _initialize_client(self):

@@ -40,10 +40,11 @@ class DOCXProcessor(IDocumentProcessor):
             hyperlinks = []
             images = []
             
-            # Process document paragraphs
+            # Process ALL document paragraphs (including empty ones for structure)
             for para_idx, paragraph in enumerate(doc.paragraphs):
                 content_block = self._process_paragraph(paragraph, para_idx)
-                if content_block:
+                # Include ALL paragraphs, even empty ones, to maintain structure
+                if content_block is not None:
                     content_blocks.append(content_block)
             
             # Process text boxes and shapes
@@ -141,22 +142,24 @@ class DOCXProcessor(IDocumentProcessor):
             )
 
     def _process_paragraph(self, paragraph, para_id) -> Dict[str, Any]:
-        """Process individual paragraph and extract content"""
+        """Process individual paragraph and extract content - INCLUDE ALL paragraphs"""
         text = paragraph.text.strip()
         
-        if not text:
-            return None
+        # CRITICAL: Include ALL paragraphs for complete document coverage
+        # Empty paragraphs maintain document structure and spacing
         
-        # Determine if paragraph is translatable
-        translatable = self._is_translatable_text(text)
+        # Determine if paragraph is translatable (even empty ones need processing)
+        translatable = self._is_translatable_text(text) if text else False
         
         content_block = {
             'id': str(para_id),
-            'text': text,
+            'text': text if text else '',  # Include empty paragraphs
             'translatable': translatable,
             'location': 'body',
             'formatting': self._extract_paragraph_formatting(paragraph),
-            'runs': self._extract_run_formatting(paragraph)
+            'runs': self._extract_run_formatting(paragraph),
+            'is_empty': not bool(text),  # Track empty paragraphs for reconstruction
+            'structure_important': True  # All paragraphs maintain document structure
         }
         
         return content_block
@@ -293,16 +296,22 @@ class DOCXProcessor(IDocumentProcessor):
         return Document(buffer)
 
     def _apply_translations_to_paragraphs(self, doc, translations: Dict[str, str]):
-        """Apply translations to document paragraphs"""
+        """Apply translations to document paragraphs with structured reconstruction"""
         for para_idx, paragraph in enumerate(doc.paragraphs):
             para_id = str(para_idx)
+            
+            # Apply translation if available (including empty strings for empty paragraphs)
             if para_id in translations:
+                translated_text = translations[para_id]
                 try:
-                    # Replace paragraph text while preserving formatting
-                    self._replace_paragraph_text(paragraph, translations[para_id])
+                    # Use enhanced text replacement that preserves formatting
+                    self._replace_paragraph_text(paragraph, translated_text)
                 except Exception as e:
                     # Fallback to simple text replacement
-                    paragraph.text = translations[para_id]
+                    if translated_text:  # Only set non-empty translations
+                        paragraph.text = translated_text
+            
+            # Maintain document structure even for untranslated paragraphs
 
     def _apply_translations_to_tables(self, doc, translations: Dict[str, str]):
         """Apply translations to table cells"""

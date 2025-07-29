@@ -13,21 +13,26 @@ class CVETermPreserver(ITermPreserver):
     """Preserves CVE-specific technical terms during translation"""
     
     def __init__(self):
-        # Pre-compiled regex patterns for performance
+        # Enhanced regex patterns for comprehensive term protection
         self.patterns = {
             'cve_ids': re.compile(r'CVE-\d{4}-\d{4,7}', re.IGNORECASE),
             'vmsa_ids': re.compile(r'VMSA-\d{4}-\d{4}', re.IGNORECASE),
             'cvss_scores': re.compile(r'CVSS[v]?\d+(\.\d+)?', re.IGNORECASE),
-            'version_numbers': re.compile(r'\d+\.\d+[\.\d+]*', re.IGNORECASE),
-            'company_names': re.compile(r'\b(VMware|Microsoft|Oracle|Adobe|Cisco|Apple|Google|Amazon|IBM|Dell|HP|Intel|AMD|NVIDIA)\b', re.IGNORECASE),
-            'product_names': re.compile(r'\b(ESXi|vCenter|Workstation|Fusion|Windows|Office|Exchange|SharePoint|Chrome|Firefox|Safari)\b', re.IGNORECASE),
+            'score_ranges': re.compile(r'\d+\.\d+[-–]\d+\.\d+', re.IGNORECASE),
+            'version_numbers': re.compile(r'\b\d+\.\d+(?:\.\d+)*(?:\s*build\s*\d+)?\b', re.IGNORECASE),
+            'build_numbers': re.compile(r'\bbuild\s+\d+\b', re.IGNORECASE),
+            'company_names': re.compile(r'\b(VMware|Microsoft|Oracle|Adobe|Cisco|Apple|Google|Amazon|IBM|Dell|HP|Intel|AMD|NVIDIA|Broadcom)\b', re.IGNORECASE),
+            'product_names': re.compile(r'\b(ESXi|vCenter\s+Server|Workstation|Fusion|Windows|Office|Exchange|SharePoint|Chrome|Firefox|Safari|Cloud\s+Foundation|Telco\s+Cloud)\b', re.IGNORECASE),
+            'product_editions': re.compile(r'\b(Pro|Standard|Enterprise|Professional|Ultimate|Home)\b', re.IGNORECASE),
             'urls': re.compile(r'https?://[^\s]+', re.IGNORECASE),
             'emails': re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', re.IGNORECASE),
             'file_paths': re.compile(r'[a-zA-Z]:\\[^\s]+|/[^\s]+', re.IGNORECASE),
             'ip_addresses': re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', re.IGNORECASE),
             'mac_addresses': re.compile(r'([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', re.IGNORECASE),
             'registry_keys': re.compile(r'HKEY_[A-Z_]+\\[^\s]+', re.IGNORECASE),
-            'hash_values': re.compile(r'\b[a-fA-F0-9]{32,64}\b', re.IGNORECASE)
+            'hash_values': re.compile(r'\b[a-fA-F0-9]{32,64}\b', re.IGNORECASE),
+            'port_numbers': re.compile(r'\b(?:port\s+)?\d{1,5}\b', re.IGNORECASE),
+            'file_extensions': re.compile(r'\.[a-zA-Z0-9]{2,5}\b', re.IGNORECASE)
         }
         
         # Additional known technical terms
@@ -58,6 +63,42 @@ class CVETermPreserver(ITermPreserver):
                 preserved_terms.update(matches)
         
         return list(preserved_terms)
+
+    def create_preservation_map(self, text: str) -> Dict[str, str]:
+        """Create a mapping of terms to protection tokens"""
+        terms = self.extract_terms(text)
+        preservation_map = {}
+        
+        for i, term in enumerate(terms):
+            # Create unique protection token
+            token = f"[KEEP:{i:04d}]"
+            preservation_map[token] = term
+        
+        return preservation_map
+
+    def apply_protection_tokens(self, text: str, preservation_map: Dict[str, str]) -> str:
+        """Replace technical terms with protection tokens"""
+        protected_text = text
+        
+        # Sort by length (longest first) to avoid partial replacements
+        sorted_terms = sorted(preservation_map.values(), key=len, reverse=True)
+        
+        for term in sorted_terms:
+            # Find the corresponding token
+            token = next(k for k, v in preservation_map.items() if v == term)
+            # Replace term with token
+            protected_text = protected_text.replace(term, token)
+        
+        return protected_text
+
+    def restore_preservation_map(self, text: str, preservation_map: Dict[str, str]) -> str:
+        """Restore protection tokens back to original terms"""
+        restored_text = text
+        
+        for token, term in preservation_map.items():
+            restored_text = restored_text.replace(token, term)
+        
+        return restored_text
 
     def verify_preservation(self, original: str, translated: str) -> bool:
         """Verify that technical terms are preserved in translation"""
