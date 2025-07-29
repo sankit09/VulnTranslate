@@ -424,15 +424,8 @@ class TranslationOrchestrator:
         
         # Test validator
         try:
-            # Use the correct method name from the validator interface
-            from core.models import ValidationRequest
-            test_validation = ValidationRequest(
-                original_text="test",
-                translated_text="test",
-                source_language=LanguageCode.ENGLISH,
-                target_language=LanguageCode.JAPANESE
-            )
-            self.validator.validate(test_validation)
+            # Simple validator test using available method
+            self.validator.validate("test", "テスト")
             results['validator'] = {'status': 'healthy'}
         except Exception as e:
             results['validator'] = {'status': 'unhealthy', 'error': str(e)}
