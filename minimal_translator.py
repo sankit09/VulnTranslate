@@ -118,6 +118,8 @@ Translate the following text to Japanese:"""
     
     def _get_embedding(self, text: str) -> np.ndarray:
         """Get embedding vector for text"""
+        if not self.openai_client:
+            return np.zeros(1536)  # Default embedding size
         response = self.openai_client.embeddings.create(
             model=self.embedding_model,
             input=text.replace("\n", " ")
@@ -236,11 +238,11 @@ Security Impact: An attacker with sufficient permission could leverage this flaw
                 
                 with col_orig:
                     st.markdown("**Original English:**")
-                    st.text_area("", value=sample_text, height=300, key="orig_sample")
+                    st.text_area("Original CVE Text", value=sample_text, height=300, key="orig_sample", label_visibility="collapsed")
                 
                 with col_trans:
                     st.markdown("**Japanese Translation:**")
-                    st.text_area("", value=translated_sample, height=300, key="trans_sample")
+                    st.text_area("Translated CVE Text", value=translated_sample, height=300, key="trans_sample", label_visibility="collapsed")
                 
                 # Validation
                 with st.spinner("Validating sample translation..."):
@@ -277,6 +279,88 @@ Security Impact: An attacker with sufficient permission could leverage this flaw
         st.subheader("Models")
         st.write("Translation: gpt-4o")
         st.write("Validation: text-embedding-3-small")
+
+    # Document Upload Section
+    st.header("📄 Document Upload")
+    st.info("Upload DOCX files to extract and translate text content")
+    
+    uploaded_file = st.file_uploader(
+        "Choose a DOCX file",
+        type=['docx'],
+        help="Upload DOCX files containing English CVE documentation"
+    )
+    
+    if uploaded_file is not None:
+        st.success(f"Uploaded: {uploaded_file.name}")
+        
+        if st.button("📖 Extract and Translate Document", type="primary"):
+            with st.spinner("Processing document..."):
+                try:
+                    # Read file content
+                    file_content = uploaded_file.read()
+                    
+                    # Try to extract text using basic method
+                    import zipfile
+                    import xml.etree.ElementTree as ET
+                    
+                    text_content = ""
+                    
+                    # Extract text from DOCX (basic XML parsing)
+                    with zipfile.ZipFile(uploaded_file, 'r') as zip_file:
+                        # Read document.xml
+                        doc_xml = zip_file.read('word/document.xml')
+                        root = ET.fromstring(doc_xml)
+                        
+                        # Extract text from paragraphs
+                        for paragraph in root.iter():
+                            if paragraph.tag.endswith('}t'):  # Text elements
+                                if paragraph.text:
+                                    text_content += paragraph.text + " "
+                            elif paragraph.tag.endswith('}p'):  # Paragraph breaks
+                                text_content += "\n\n"
+                    
+                    # Clean up text
+                    text_content = ' '.join(text_content.split())
+                    
+                    if text_content.strip():
+                        st.subheader("📄 Extracted Text")
+                        st.text_area("Extracted Content", value=text_content[:1000] + "..." if len(text_content) > 1000 else text_content, height=150, label_visibility="collapsed")
+                        
+                        # Translate extracted text
+                        with st.spinner("Translating document content..."):
+                            translated_content = translator.translate_text(text_content)
+                            
+                            st.subheader("📋 Translated Document")
+                            st.text_area("Translated Content", value=translated_content, height=200, label_visibility="collapsed")
+                            
+                            # Validation
+                            with st.spinner("Validating translation..."):
+                                validation = translator.validate_translation(text_content, translated_content)
+                                
+                                st.subheader("✅ Document Quality Check")
+                                col_a, col_b, col_c = st.columns(3)
+                                
+                                with col_a:
+                                    st.metric("Similarity Score", f"{validation['similarity_score']:.2f}")
+                                with col_b:
+                                    st.metric("Quality", validation['quality'])
+                                with col_c:
+                                    preserved = "✅" if validation['technical_terms_preserved'] else "⚠️"
+                                    st.metric("Technical Terms", preserved)
+                            
+                            # Download option
+                            st.download_button(
+                                label="📥 Download Translated Text",
+                                data=translated_content,
+                                file_name=f"translated_{uploaded_file.name.replace('.docx', '.txt')}",
+                                mime="text/plain"
+                            )
+                    else:
+                        st.error("Could not extract text from the document")
+                        
+                except Exception as e:
+                    st.error(f"Error processing document: {str(e)}")
+                    st.info("Try uploading a simpler DOCX file or use the text input method above")
 
 if __name__ == "__main__":
     main()
