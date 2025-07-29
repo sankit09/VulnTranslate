@@ -848,7 +848,14 @@ Required Environment Variables:
                         st.metric("Similarity Score", f"{similarity:.3f}")
                     with col2:
                         quality = validation.get('quality', 'unknown') if isinstance(validation, dict) else getattr(validation, 'quality', 'unknown')
-                        st.metric("Quality", quality)
+                        # Convert enum to string if needed
+                        if hasattr(quality, 'value'):
+                            quality_str = quality.value
+                        elif hasattr(quality, 'name'):
+                            quality_str = quality.name.lower()
+                        else:
+                            quality_str = str(quality)
+                        st.metric("Quality", quality_str)
                     with col3:
                         st.metric("Terms Preserved", "✅" if result['terms_preserved'] else "⚠️")
                 
