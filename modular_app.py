@@ -593,50 +593,149 @@ Required Environment Variables:
                 st.error(f"❌ Document translation failed: {result.error_message}")
 
     def _render_analytics(self):
-        """Render analytics and statistics"""
+        """Render enhanced analytics with similarity scores and back translation"""
         st.header("📊 System Analytics")
         
         if self.orchestrator:
-            stats = self.orchestrator.get_processing_statistics()
+            # Get statistics from orchestrator
+            # Get statistics directly from orchestrator stats
+            stats = self.orchestrator.stats
             
             # Session statistics
             st.subheader("📈 Session Statistics")
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.metric("Total Translations", stats['session_stats']['total_translations'])
+                total = stats.get('successful_translations', 0) + stats.get('failed_translations', 0)
+                st.metric("Total Translations", total)
             with col2:
-                st.metric("Successful", stats['session_stats']['successful_translations'])
+                st.metric("Successful", stats.get('successful_translations', 0))
             with col3:
-                st.metric("Failed", stats['session_stats']['failed_translations'])
+                st.metric("Failed", stats.get('failed_translations', 0))
             with col4:
-                avg_time = stats['session_stats']['average_processing_time']
+                avg_time = stats.get('average_processing_time', 0)
                 st.metric("Avg Time (s)", f"{avg_time:.2f}")
+            
+            # Quality Metrics from last translation
+            if hasattr(st.session_state, 'last_validation_result'):
+                st.subheader("🎯 Last Translation Quality")
+                validation = st.session_state.last_validation_result
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    similarity = validation.get('similarity_score', 0)
+                    st.metric("Similarity Score", f"{similarity:.3f}")
+                    if similarity > 0.8:
+                        st.success("Excellent quality")
+                    elif similarity > 0.7:
+                        st.info("Good quality")
+                    else:
+                        st.warning("Needs improvement")
+                
+                with col2:
+                    confidence = validation.get('confidence_score', 0)
+                    st.metric("Confidence", f"{confidence:.3f}")
+                
+                with col3:
+                    terms_preserved = validation.get('terms_preserved_count', 0)
+                    st.metric("Terms Protected", terms_preserved)
+            
+            # Back Translation Analysis
+            if hasattr(st.session_state, 'last_translation_text') and hasattr(st.session_state, 'last_original_text'):
+                if st.button("🔄 Perform Back Translation Analysis"):
+                    self._perform_back_translation_analysis()
             
             # Configuration display
             st.subheader("⚙️ Current Configuration")
             config_col1, config_col2 = st.columns(2)
             
             with config_col1:
-                st.write(f"**Model:** {stats['configuration']['model_name']}")
-                st.write(f"**Temperature:** {stats['configuration']['temperature']}")
-                st.write(f"**Max Tokens:** {stats['configuration']['max_tokens']}")
+                st.write(f"**Model:** {self.orchestrator.config.model_name}")
+                st.write(f"**Temperature:** {self.orchestrator.config.temperature}")
+                st.write(f"**Max Tokens:** {self.orchestrator.config.max_tokens}")
             
             with config_col2:
-                st.write(f"**Batch Size:** {stats['configuration']['batch_size']}")
-                st.write(f"**Validation:** {'Enabled' if stats['configuration']['validation_enabled'] else 'Disabled'}")
-                st.write(f"**Quality Threshold:** {stats['configuration']['quality_threshold']}")
+                st.write(f"**Batch Size:** {self.orchestrator.config.batch_size}")
+                st.write(f"**Validation:** {'Enabled' if self.orchestrator.config.enable_validation else 'Disabled'}")
+                st.write(f"**Quality Threshold:** {self.orchestrator.config.quality_threshold}")
             
-            # Translation history
-            if st.session_state.translation_history:
-                st.subheader("📜 Translation History")
-                for i, entry in enumerate(reversed(st.session_state.translation_history[-10:])):
-                    with st.expander(f"Translation {len(st.session_state.translation_history) - i}"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.text_area("Original", entry['original'], height=100, key=f"orig_{i}")
-                        with col2:
-                            st.text_area("Translation", entry['translated'], height=100, key=f"trans_{i}")
+            # Component Health
+            st.subheader("🔧 Component Health")
+            health_results = self.orchestrator.test_components()
+            
+            for component, result in health_results.items():
+                status = "✅" if result.get('status') == 'healthy' else "❌"
+                st.write(f"{status} **{component.replace('_', ' ').title()}**")
+                if result.get('error'):
+                    st.error(f"Error: {result['error']}")
+        else:
+            st.warning("Analytics unavailable - system not initialized")
+
+    def _perform_back_translation_analysis(self):
+        """Perform back translation analysis for quality assessment"""
+        if not hasattr(st.session_state, 'last_translation_text') or not hasattr(st.session_state, 'last_original_text'):
+            st.error("No recent translation data available for back translation analysis")
+            return
+        
+        original = st.session_state.last_original_text
+        translated = st.session_state.last_translation_text
+        
+        try:
+            with st.spinner("Performing back translation analysis..."):
+                # Create back translation request (Japanese to English)
+                from core.models import TranslationRequest, LanguageCode
+                
+                back_request = TranslationRequest(
+                    text=translated,
+                    source_language=LanguageCode.JAPANESE,
+                    target_language=LanguageCode.ENGLISH,
+                    preserve_technical_terms=True,
+                    context="Back translation for quality analysis"
+                )
+                
+                # Perform back translation
+                back_response = self.orchestrator.translator.translate(back_request)
+                back_translated = back_response.translated_text
+                
+                # Calculate similarity
+                similarity = self.orchestrator.validator.calculate_similarity(original, back_translated)
+                
+                # Display results
+                st.subheader("🔄 Back Translation Analysis Results")
+                
+                # Similarity metrics
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Semantic Similarity", f"{similarity:.3f}")
+                with col2:
+                    word_ratio = len(back_translated.split()) / len(original.split()) if original else 0
+                    st.metric("Word Count Ratio", f"{word_ratio:.2f}")
+                with col3:
+                    char_ratio = len(back_translated) / len(original) if original else 0
+                    st.metric("Character Ratio", f"{char_ratio:.2f}")
+                
+                # Text comparison
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("**Original English:**")
+                    st.text_area("Original", original, height=200, key="back_orig")
+                
+                with col2:
+                    st.write("**Back Translation (JP→EN):**")
+                    st.text_area("Back Translation", back_translated, height=200, key="back_result")
+                
+                # Quality assessment
+                if similarity > 0.85:
+                    st.success("🌟 Excellent translation quality - High semantic preservation")
+                elif similarity > 0.75:
+                    st.info("✅ Good translation quality - Acceptable semantic similarity")
+                elif similarity > 0.65:
+                    st.warning("⚠️ Moderate translation quality - Some meaning preserved")
+                else:
+                    st.error("❌ Poor translation quality - Significant meaning loss")
+                
+        except Exception as e:
+            st.error(f"Back translation analysis failed: {str(e)}")
 
     def _render_settings(self):
         """Render settings and configuration"""
