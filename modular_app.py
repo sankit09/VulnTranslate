@@ -8,6 +8,12 @@ import os
 import time
 from typing import Dict, Any, Optional
 
+import os
+from dotenv import load_dotenv
+
+# Load the environment variables from .env file
+load_dotenv()
+
 # Core imports
 from core.models import TranslationConfig, LanguageCode, DocumentType
 from core.exceptions import CVETranslationError

@@ -1,0 +1,49 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environment variables
+.env
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# VS Code settings
+.vscode/
+
+# macOS system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
+desktop.ini
+
+# Poetry lock files (optional to ignore .lock if not needed)
+poetry.lock
+uv.lock
+
+# Compiled files and cache
+*.so
+*.dll
+*.dylib
+*.log
+*.pickle
+*.pkl
+
+# Streamlit-specific
+.streamlit/secrets.toml
+
+# Jupyter Notebooks (if any outputs get added later)
+.ipynb_checkpoints/
+
+# Generated test docs
+test_cve_document.html
+*.docx
+
+# Output files
+*.tmp
+*.bak
+*.swp

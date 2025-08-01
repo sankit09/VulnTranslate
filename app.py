@@ -8,6 +8,11 @@ from services.translator import CVETranslator
 from services.validator import TranslationValidator
 from services.document_reconstructor import DocumentReconstructor
 from utils.text_processor import TextProcessor
+import os
+from dotenv import load_dotenv
+
+# Load the environment variables from .env file
+load_dotenv()
 
 # Configure page
 st.set_page_config(
