@@ -89,34 +89,43 @@ sequenceDiagram
 
 ## 📦 Installation & Setup
 
-### 1. **Clone Repository**
+### Quick Setup
+
+1. **Clone Repository**
 ```bash
 git clone <repository-url>
 cd cve-translation-system
 ```
 
-### 2. **Install Dependencies**
+2. **Install Dependencies using pyproject.toml**
 ```bash
-pip install streamlit openai python-docx requests beautifulsoup4 numpy aspose-words
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate   # Windows
+
+# Install from pyproject.toml
+pip install -e .
 ```
 
-### 3. **Set Environment Variables**
+3. **Set Environment Variables**
 ```bash
-# Azure OpenAI Configuration
 export AZURE_OPENAI_KEY="your_azure_openai_key"
 export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-
-# OpenAI Configuration (for embeddings)
 export OPENAI_API_KEY="your_openai_api_key"
 ```
 
-### 4. **Run Application**
+4. **Run Application**
 ```bash
 streamlit run modular_app.py --server.port 5000
 ```
 
-### 5. **Access Application**
+5. **Access Application**
 Open your browser to `http://localhost:5000`
+
+### 📋 Detailed Local Setup
+
+For comprehensive step-by-step instructions, troubleshooting, and production considerations, see: **[LOCAL_SETUP.md](LOCAL_SETUP.md)**
 
 ## 🎯 Usage Guide
 

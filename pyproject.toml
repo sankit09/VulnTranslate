@@ -1,7 +1,7 @@
 [project]
-name = "repl-nix-workspace"
-version = "0.1.0"
-description = "Add your description here"
+name = "cve-translation-system"
+version = "1.0.0"
+description = "Professional AI-powered CVE document translation system with Japanese template replacement"
 requires-python = ">=3.11"
 dependencies = [
     "aspose-words>=25.7.0",
