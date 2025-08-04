@@ -97,6 +97,22 @@ The system is architected to handle CVE documents specifically, with specialized
 
 ## Recent Changes
 
+### August 4, 2025 - Project Cleanup and Documentation
+
+#### **Complete Project Structure Cleanup**
+- **Single Entry Point**: Consolidated to `modular_app.py` as the sole application entry point
+- **Professional README**: Created comprehensive README with mermaid diagrams showing system architecture and workflow
+- **Clean File Structure**: Removed all unnecessary files, keeping only essential components
+- **Updated Workflow**: Single "CVE Translation System" workflow running on port 5000
+- **Documentation Updates**: Updated `replit.md` to reflect clean, professional project structure
+
+#### **Enhanced First Page Removal Strategy**
+- **Critical Fix Implemented**: Early removal strategy that removes first page content BEFORE translation occurs
+- **Two-Stage Approach**: Early removal during extraction + late removal during reconstruction
+- **Comprehensive Detection**: Enhanced detection with 20+ specific first page content indicators
+- **Perfect Workflow Order**: Content removed → Translation happens → Japanese image inserted
+- **User Confirmed Success**: Japanese template "脆弱性の詳細および解決策:" appears correctly with clean results
+
 ### July 29, 2025 - Major System Enhancements
 
 #### **Initial Modular Architecture (Morning)**
