@@ -342,100 +342,92 @@ class DOCXProcessor(IDocumentProcessor):
         return False
 
     def _replace_first_page_with_japanese_template(self, doc):
-        """Replace the first page content with pre-translated Japanese template"""
+        """Remove original first page completely and replace with Japanese template"""
         try:
-            # First, insert Japanese content at the beginning
-            self._insert_japanese_first_page_content(doc)
-            
-            # Then remove original first page content (now pushed down)
+            # Remove ALL paragraphs until we reach CVE content
             paragraphs_to_remove = []
             
-            # Start checking from paragraph 3 onwards (after our inserted Japanese content)
-            for i, paragraph in enumerate(doc.paragraphs[3:], start=3):
+            for i, paragraph in enumerate(doc.paragraphs):
                 text = paragraph.text.strip().lower()
                 
-                # Check if this is original first page content that needs removal
-                if ("attack surface" in text or
-                    "cyber security advisory" in text or
-                    "vulnerability management" in text or
-                    "advanced vulnerability management" in text or
-                    "avm" in text or
-                    "risk-based approach" in text or
-                    "threat actors" in text or
-                    "proactive" in text or
-                    "predictive approach" in text or
-                    "transformation calls" in text or
-                    "contemporary vulnerability" in text):
+                # Remove everything until we find actual CVE content
+                if not ("cve-" in text or "vmsa-" in text or 
+                       ("vmware" in text and ("esxi" in text or "vcenter" in text or "workstation" in text))):
                     paragraphs_to_remove.append(paragraph)
                 else:
-                    # Stop when we reach actual CVE content
-                    if ("cve-" in text or "vmware" in text or "vmsa-" in text) and i > 5:
-                        break
+                    # Found CVE content, stop removing
+                    break
             
-            # Remove identified original first page paragraphs
+            # Remove all identified first page paragraphs
+            print(f"Removing {len(paragraphs_to_remove)} first page paragraphs")
             for paragraph in paragraphs_to_remove:
                 try:
                     p = paragraph._element
                     p.getparent().remove(p)
                 except Exception:
-                    pass  # Continue if removal fails
+                    pass
+            
+            # Insert Japanese template at the beginning
+            self._insert_japanese_first_page_content(doc)
             
         except Exception as e:
             print(f"Warning: Could not replace first page: {e}")
     
     def _insert_japanese_first_page_content(self, doc):
-        """Insert the Japanese first page content at the document start"""
+        """Insert the exact Japanese first page content as shown in the template"""
         try:
-            # Use simple paragraph insertion at the beginning for more reliable placement
-            # Create a new paragraph at the start of the document
-            body = doc._element.body
+            from docx.shared import Pt
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
             
-            # Create paragraphs in reverse order for insertion at the beginning
-            paragraphs_to_add = []
+            # Insert the exact content from the Japanese template image
+            # Create first page content to match the template exactly
             
-            # Main content paragraph
-            main_text = """アタックサーフェスが拡大し、より洗練された脅威アクターが台頭する中、脆弱性管理はリアクティブな姿勢からプロアクティブで予測的なアプローチへと変化している。この変革には、リスクベースの手法の採用、高度な脅威インテリジェンスの活用、より広範なセキュリティアーキテクチャとの連携が必要です。現代の脆弱性管理は、組織特有の脅威環境を考慮に入れ、それに応じて修復戦略をカスタマイズする必要があります。
+            # Header - Cyber Security Advisory (matching the template)
+            header_para = doc.add_paragraph()
+            header_run = header_para.add_run("Cyber Security Advisory")
+            header_run.font.size = Pt(24)  # Large header
+            header_run.bold = True
+            header_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # Add page break or large spacing
+            doc.add_paragraph()
+            doc.add_paragraph()
+            
+            # Main Japanese content paragraph (left side text from template)
+            japanese_para = doc.add_paragraph()
+            japanese_text = """アタックサーフェスが拡大し、より洗練された脅威アクターが台頭する中、脆弱性管理はリアクティブな姿勢からプロアクティブで予測的なアプローチへと変化している。この変革には、リスクベースの手法の採用、高度な脅威インテリジェンスの活用、より広範なセキュリティアーキテクチャとの連携が必要です。現代の脆弱性管理は、組織特有の脅威環境を考慮に入れ、それに応じて修復戦略をカスタマイズする必要があります。
 
 そこで、当社のプロアクティブな高度脆弱性管理（AVM）サービスが登場し、リスクベースのアプローチ、資産価値、脆弱性の深刻度、脅威環境に基づく堅牢な脆弱性管理システムの構築を支援します。"""
+            japanese_para.add_run(japanese_text)
             
-            # Add using Document methods for better compatibility
-            # Insert header first
-            header_para = doc.add_paragraph("サイバーセキュリティアドバイザリ")
+            # Add spacing before CVE content
+            doc.add_paragraph()
+            doc.add_paragraph()
             
-            # Add spacing
-            spacing_para = doc.add_paragraph()
+            # Move all these paragraphs to the beginning
+            body = doc._element.body
+            elements_to_move = []
             
-            # Add main content
-            content_para = doc.add_paragraph(main_text)
+            # Collect the elements we just created
+            for para in [header_para] + [p for p in doc.paragraphs[-5:]]:  # Last 5 paragraphs we added
+                elements_to_move.append(para._element)
             
-            # Move these paragraphs to the beginning by manipulating the XML
-            body_element = doc._element.body
-            
-            # Remove the paragraphs from their current position
-            header_element = header_para._element
-            spacing_element = spacing_para._element
-            content_element = content_para._element
-            
-            # Remove from current position
-            header_element.getparent().remove(header_element)
-            spacing_element.getparent().remove(spacing_element)
-            content_element.getparent().remove(content_element)
-            
-            # Insert at the beginning
-            if len(body_element) > 0:
-                body_element.insert(0, header_element)
-                body_element.insert(1, spacing_element)
-                body_element.insert(2, content_element)
-            else:
-                body_element.append(header_element)
-                body_element.append(spacing_element)
-                body_element.append(content_element)
-                
+            # Remove from current position and insert at beginning
+            for i, element in enumerate(elements_to_move):
+                if element.getparent() is not None:
+                    element.getparent().remove(element)
+                    body.insert(i, element)
+                    
         except Exception as e:
-            print(f"Warning: Could not insert Japanese content with XML manipulation: {e}")
-            # Simple fallback - just add at the end and hope for the best
+            print(f"Warning: Could not insert Japanese content: {e}")
+            # Simple fallback
             try:
-                doc.add_paragraph("サイバーセキュリティアドバイザリ")
+                from docx.shared import Pt
+                from docx.enum.text import WD_ALIGN_PARAGRAPH
+                
+                # Simple insertion without moving
+                p1 = doc.add_paragraph("Cyber Security Advisory")
+                p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 doc.add_paragraph()
                 doc.add_paragraph("""アタックサーフェスが拡大し、より洗練された脅威アクターが台頭する中、脆弱性管理はリアクティブな姿勢からプロアクティブで予測的なアプローチへと変化している。この変革には、リスクベースの手法の採用、高度な脅威インテリジェンスの活用、より広範なセキュリティアーキテクチャとの連携が必要です。現代の脆弱性管理は、組織特有の脅威環境を考慮に入れ、それに応じて修復戦略をカスタマイズする必要があります。
 
