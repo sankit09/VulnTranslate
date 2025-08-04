@@ -331,8 +331,9 @@ class DOCXProcessor(IDocumentProcessor):
         try:
             paragraphs_to_remove = []
             
-            # Define first page content indicators
+            # Define comprehensive first page content indicators  
             first_page_indicators = [
+                "as the attack surface expands",
                 "attack surface",
                 "sophisticated threat actors", 
                 "vulnerability management has shifted",
@@ -346,13 +347,17 @@ class DOCXProcessor(IDocumentProcessor):
                 "customize remediation strategies",
                 "advanced vulnerability management",
                 "avm services",
-                "risk-based approach",
+                "risk-based approach", 
                 "asset value",
                 "severity of vulnerabilities",
-                "threat actors"
+                "threat actors",
+                "this is where our proactive",
+                "build a robust vulnerability management system",
+                "based on a risk-based approach",
+                "come to play and help you"
             ]
             
-            # Find and mark paragraphs for removal
+            # Find and mark paragraphs for removal - be more aggressive
             for i, paragraph in enumerate(doc.paragraphs):
                 text = paragraph.text.strip().lower()
                 
@@ -363,12 +368,17 @@ class DOCXProcessor(IDocumentProcessor):
                         should_remove = True
                         break
                 
-                # Also remove very short paragraphs at the beginning (likely spacing)
-                if i < 20 and len(text) < 10:
-                    should_remove = True
+                # Remove the first 25 paragraphs if they don't contain CVE content
+                # This is more aggressive to ensure we get all first page content
+                if i < 25 and not ("cve-" in text or "vmsa-" in text):
+                    # Only keep if it's clearly CVE content
+                    if not ("vmware" in text and len(text) > 30):
+                        should_remove = True
                 
-                # Stop removing when we reach CVE content
-                if ("cve-" in text or "vmware" in text or "vmsa-" in text) and len(text) > 20:
+                # Stop removing when we reach clear CVE content  
+                if (("cve-" in text or "vmsa-" in text) and len(text) > 20) or \
+                   ("vmware" in text and ("esxi" in text or "vcenter" in text) and len(text) > 30):
+                    print(f"Found CVE content at paragraph {i}, stopping removal")
                     break
                     
                 if should_remove:
