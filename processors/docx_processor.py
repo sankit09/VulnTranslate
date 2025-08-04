@@ -428,9 +428,7 @@ class DOCXProcessor(IDocumentProcessor):
                 "this is where our proactive",
                 "build a robust vulnerability management system",
                 "based on a risk-based approach",
-                "come to play and help you",
-                "vulnerability detail & resolution",  # This is first page template
-                "vulnerability detail and resolution"  # Variant
+                "come to play and help you"
             ]
             
             paragraphs_to_remove = []
@@ -439,17 +437,13 @@ class DOCXProcessor(IDocumentProcessor):
             for i, paragraph in enumerate(doc.paragraphs):
                 text = paragraph.text.strip().lower()
                 
-                # Look for the start of actual CVE content - be EXTREMELY strict
-                # Only stop when we find specific VMware security advisory content
+                # Look for the start of actual CVE content - be very strict
                 is_cve_content = (
-                    ("vmsa-" in text and ("2025" in text or "vmware" in text)) or
-                    ("cve-2025-" in text and len(text) > 20) or
-                    ("vmware esxi" in text and ("vcenter" in text or "workstation" in text or "fusion" in text)) or
-                    ("脆弱性の詳細および解決策" in text)  # Japanese translation header only
+                    ("vmsa-" in text and len(text) > 10) or
+                    ("cve-" in text and len(text) > 15) or
+                    ("vulnerability detail" in text and "resolution" in text) or
+                    ("脆弱性の詳細" in text)  # Japanese translation
                 )
-                
-                # NEVER stop for generic headers like "Vulnerability Detail & Resolution"
-                # These are part of the first page template that must be removed
                 
                 if is_cve_content:
                     print(f"CVE content detected at paragraph {i}, stopping early removal")
