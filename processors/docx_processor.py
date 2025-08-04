@@ -35,6 +35,9 @@ class DOCXProcessor(IDocumentProcessor):
             # Load document from bytes
             doc = Document(io.BytesIO(file_content))
             
+            # CRITICAL FIX: Remove first page content BEFORE processing for translation
+            self._remove_first_page_content_early(doc)
+            
             content_blocks = []
             tables = []
             hyperlinks = []
@@ -393,6 +396,82 @@ class DOCXProcessor(IDocumentProcessor):
                     
         except Exception as e:
             print(f"Warning: Could not remove first page content: {e}")
+
+    def _remove_first_page_content_early(self, doc):
+        """Remove first page content BEFORE translation to prevent it from being processed"""
+        try:
+            print("=== EARLY FIRST PAGE REMOVAL (BEFORE TRANSLATION) ===")
+            
+            # Find paragraphs containing first page marketing content
+            first_page_indicators = [
+                "as the attack surface expands",
+                "attack surface",
+                "sophisticated threat actors", 
+                "vulnerability management has shifted",
+                "proactive and predictive approach",
+                "transformation calls for",
+                "risk-based methodologies",
+                "advanced threat intelligence",
+                "broader security architecture",
+                "contemporary vulnerability management",
+                "organization's distinct threat environment",
+                "customize remediation strategies",
+                "advanced vulnerability management",
+                "avm services",
+                "risk-based approach", 
+                "asset value",
+                "severity of vulnerabilities",
+                "threat actors",
+                "this is where our proactive",
+                "build a robust vulnerability management system",
+                "based on a risk-based approach",
+                "come to play and help you"
+            ]
+            
+            paragraphs_to_remove = []
+            cve_content_started = False
+            
+            for i, paragraph in enumerate(doc.paragraphs):
+                text = paragraph.text.strip().lower()
+                
+                # Look for the start of actual CVE content
+                is_cve_content = (
+                    ("vmware" in text and any(product in text for product in ["esxi", "vcenter", "workstation", "fusion"])) or
+                    ("vmsa-" in text and len(text) > 10) or
+                    ("cve-" in text and len(text) > 15) or
+                    ("vulnerability detail" in text and len(text) > 10) or
+                    ("脆弱性の詳細" in text)  # Japanese translation
+                )
+                
+                if is_cve_content:
+                    print(f"CVE content detected at paragraph {i}, stopping early removal")
+                    cve_content_started = True
+                    break
+                
+                # Remove first page content before CVE content starts
+                if not cve_content_started:
+                    # Check if paragraph contains first page indicators
+                    contains_first_page_content = any(indicator in text for indicator in first_page_indicators)
+                    
+                    # Remove if it contains first page content OR if it's before CVE content
+                    if contains_first_page_content or len(text) < 50:  # Remove short paragraphs too
+                        paragraphs_to_remove.append(paragraph)
+                        print(f"Marking early paragraph {i} for removal: '{text[:50]}...'")
+            
+            # Remove the identified paragraphs
+            print(f"Removing {len(paragraphs_to_remove)} first page paragraphs BEFORE translation")
+            for paragraph in paragraphs_to_remove:
+                try:
+                    p = paragraph._element
+                    p.getparent().remove(p)
+                    print(f"Early removed: '{paragraph.text[:50]}...'")
+                except Exception as e:
+                    print(f"Could not remove paragraph early: {e}")
+                    
+            print("=== EARLY FIRST PAGE REMOVAL COMPLETE ===")
+                    
+        except Exception as e:
+            print(f"Warning: Could not remove first page content early: {e}")
 
     def _get_static_translations(self) -> Dict[str, str]:
         """Get mapping of static English text to Japanese translations for first page content"""
