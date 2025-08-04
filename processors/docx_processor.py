@@ -40,14 +40,10 @@ class DOCXProcessor(IDocumentProcessor):
             hyperlinks = []
             images = []
             
-            # Process ALL document paragraphs (excluding first page content)
+            # Process ALL document paragraphs (including empty ones for structure)
             for para_idx, paragraph in enumerate(doc.paragraphs):
-                # Skip first page content - only translate from page 2 onwards
-                if self._is_first_page_content(paragraph, para_idx):
-                    continue
-                    
                 content_block = self._process_paragraph(paragraph, para_idx)
-                # Include paragraphs from page 2 onwards, even empty ones, to maintain structure
+                # Include ALL paragraphs, even empty ones, to maintain structure
                 if content_block is not None:
                     content_blocks.append(content_block)
             
@@ -62,14 +58,10 @@ class DOCXProcessor(IDocumentProcessor):
                 table_data = self._process_table(table, table_idx)
                 tables.append(table_data)
                 
-                # Add table cell content to content blocks (skip first page tables)
+                # Add table cell content to content blocks
                 for row_idx, row in enumerate(table.rows):
                     for cell_idx, cell in enumerate(row.cells):
                         for para_idx, paragraph in enumerate(cell.paragraphs):
-                            # Skip tables that are part of the first page
-                            if table_idx == 0 and self._is_first_page_content(paragraph, 0):
-                                continue
-                                
                             content_block = self._process_paragraph(
                                 paragraph, 
                                 f"table_{table_idx}_row_{row_idx}_cell_{cell_idx}_para_{para_idx}"
@@ -121,7 +113,7 @@ class DOCXProcessor(IDocumentProcessor):
             )
 
     def reconstruct_document(self, content: Dict[str, Any], translations: Dict[str, str]) -> bytes:
-        """Reconstruct DOCX document with translated content and Japanese first page"""
+        """Reconstruct DOCX document with translated content"""
         try:
             original_doc = content.get('original_document')
             if not original_doc:
@@ -129,9 +121,6 @@ class DOCXProcessor(IDocumentProcessor):
             
             # Create a copy of the document for modification
             doc_copy = self._deep_copy_document(original_doc)
-            
-            # Replace first page with Japanese template
-            self._replace_first_page_with_japanese_template(doc_copy)
             
             # Apply translations to paragraphs
             self._apply_translations_to_paragraphs(doc_copy, translations)
@@ -316,124 +305,6 @@ class DOCXProcessor(IDocumentProcessor):
                 translated_text = translated_text.replace(english, japanese)
         
         return translated_text
-
-    def _is_first_page_content(self, paragraph, para_idx: int) -> bool:
-        """Determine if paragraph is part of the first page that should be skipped"""
-        # Skip the first 15-20 paragraphs which typically contain the first page content
-        # This includes the header image, title, and main text box content
-        if para_idx < 20:
-            return True
-        
-        # Also check for specific first-page indicators in the text
-        text = paragraph.text.strip().lower()
-        first_page_indicators = [
-            "cyber security advisory",
-            "attack surface",
-            "advanced vulnerability management",
-            "proactive and predictive approach",
-            "risk-based approach",
-            "contemporary vulnerability management"
-        ]
-        
-        for indicator in first_page_indicators:
-            if indicator in text:
-                return True
-        
-        return False
-
-    def _replace_first_page_with_japanese_template(self, doc):
-        """Remove original first page completely and replace with Japanese template"""
-        try:
-            # Remove ALL paragraphs until we reach CVE content
-            paragraphs_to_remove = []
-            
-            for i, paragraph in enumerate(doc.paragraphs):
-                text = paragraph.text.strip().lower()
-                
-                # Remove everything until we find actual CVE content
-                if not ("cve-" in text or "vmsa-" in text or 
-                       ("vmware" in text and ("esxi" in text or "vcenter" in text or "workstation" in text))):
-                    paragraphs_to_remove.append(paragraph)
-                else:
-                    # Found CVE content, stop removing
-                    break
-            
-            # Remove all identified first page paragraphs
-            print(f"Removing {len(paragraphs_to_remove)} first page paragraphs")
-            for paragraph in paragraphs_to_remove:
-                try:
-                    p = paragraph._element
-                    p.getparent().remove(p)
-                except Exception:
-                    pass
-            
-            # Insert Japanese template at the beginning
-            self._insert_japanese_first_page_content(doc)
-            
-        except Exception as e:
-            print(f"Warning: Could not replace first page: {e}")
-    
-    def _insert_japanese_first_page_content(self, doc):
-        """Insert the exact Japanese first page content as shown in the template"""
-        try:
-            from docx.shared import Pt
-            from docx.enum.text import WD_ALIGN_PARAGRAPH
-            
-            # Insert the exact content from the Japanese template image
-            # Create first page content to match the template exactly
-            
-            # Header - Cyber Security Advisory (matching the template)
-            header_para = doc.add_paragraph()
-            header_run = header_para.add_run("Cyber Security Advisory")
-            header_run.font.size = Pt(24)  # Large header
-            header_run.bold = True
-            header_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            
-            # Add page break or large spacing
-            doc.add_paragraph()
-            doc.add_paragraph()
-            
-            # Main Japanese content paragraph (left side text from template)
-            japanese_para = doc.add_paragraph()
-            japanese_text = """アタックサーフェスが拡大し、より洗練された脅威アクターが台頭する中、脆弱性管理はリアクティブな姿勢からプロアクティブで予測的なアプローチへと変化している。この変革には、リスクベースの手法の採用、高度な脅威インテリジェンスの活用、より広範なセキュリティアーキテクチャとの連携が必要です。現代の脆弱性管理は、組織特有の脅威環境を考慮に入れ、それに応じて修復戦略をカスタマイズする必要があります。
-
-そこで、当社のプロアクティブな高度脆弱性管理（AVM）サービスが登場し、リスクベースのアプローチ、資産価値、脆弱性の深刻度、脅威環境に基づく堅牢な脆弱性管理システムの構築を支援します。"""
-            japanese_para.add_run(japanese_text)
-            
-            # Add spacing before CVE content
-            doc.add_paragraph()
-            doc.add_paragraph()
-            
-            # Move all these paragraphs to the beginning
-            body = doc._element.body
-            elements_to_move = []
-            
-            # Collect the elements we just created
-            for para in [header_para] + [p for p in doc.paragraphs[-5:]]:  # Last 5 paragraphs we added
-                elements_to_move.append(para._element)
-            
-            # Remove from current position and insert at beginning
-            for i, element in enumerate(elements_to_move):
-                if element.getparent() is not None:
-                    element.getparent().remove(element)
-                    body.insert(i, element)
-                    
-        except Exception as e:
-            print(f"Warning: Could not insert Japanese content: {e}")
-            # Simple fallback
-            try:
-                from docx.shared import Pt
-                from docx.enum.text import WD_ALIGN_PARAGRAPH
-                
-                # Simple insertion without moving
-                p1 = doc.add_paragraph("Cyber Security Advisory")
-                p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                doc.add_paragraph()
-                doc.add_paragraph("""アタックサーフェスが拡大し、より洗練された脅威アクターが台頭する中、脆弱性管理はリアクティブな姿勢からプロアクティブで予測的なアプローチへと変化している。この変革には、リスクベースの手法の採用、高度な脅威インテリジェンスの活用、より広範なセキュリティアーキテクチャとの連携が必要です。現代の脆弱性管理は、組織特有の脅威環境を考慮に入れ、それに応じて修復戦略をカスタマイズする必要があります。
-
-そこで、当社のプロアクティブな高度脆弱性管理（AVM）サービスが登場し、リスクベースのアプローチ、資産価値、脆弱性の深刻度、脅威環境に基づく堅牢な脆弱性管理システムの構築を支援します。""")
-            except Exception:
-                pass
 
     def _is_translatable_text(self, text: str) -> bool:
         """Determine if text should be translated"""
