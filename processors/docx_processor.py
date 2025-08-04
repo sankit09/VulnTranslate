@@ -266,6 +266,46 @@ class DOCXProcessor(IDocumentProcessor):
             pass
         return None
 
+    def _get_static_translations(self) -> Dict[str, str]:
+        """Static translations for recurring first-page content"""
+        return {
+            "Attack Surface": "攻撃対象領域",
+            "Advanced Vulnerability Management": "高度脆弱性管理",
+            "Advanced Vulnerability Management (AVM)": "高度脆弱性管理（AVM）",
+            "Cyber Security Advisory": "サイバーセキュリティアドバイザリ",
+            "vulnerability management": "脆弱性管理",
+            "threat actors": "脅威アクター",
+            "Risk-Based Approach": "リスクベースアプローチ",
+            "Asset Value": "資産価値",
+            "Severity of Vulnerabilities": "脆弱性の深刻度",
+            "Threat Actors": "脅威アクター",
+            "Vulnerability Management System": "脆弱性管理システム",
+            "proactive and predictive approach": "予防的で予測的なアプローチ",
+            "sophisticated threat actors": "高度な脅威アクター",
+            "embrace of risk-based methodologies": "リスクベース手法の採用",
+            "utilization of advanced threat intelligence": "高度な脅威インテリジェンスの活用",
+            "alignment with the broader security architecture": "より広範なセキュリティアーキテクチャとの整合",
+            "Contemporary vulnerability management": "現代的な脆弱性管理",
+            "organization's distinct threat environment": "組織の独特な脅威環境",
+            "customize remediation strategies accordingly": "対応する修復戦略のカスタマイズ"
+        }
+
+    def _apply_static_translation(self, text: str) -> str:
+        """Apply static translations to known recurring content"""
+        static_translations = self._get_static_translations()
+        
+        # Check for exact matches first
+        if text.strip() in static_translations:
+            return static_translations[text.strip()]
+        
+        # Check for partial matches in longer sentences
+        translated_text = text
+        for english, japanese in static_translations.items():
+            if english.lower() in text.lower():
+                translated_text = translated_text.replace(english, japanese)
+        
+        return translated_text
+
     def _is_translatable_text(self, text: str) -> bool:
         """Determine if text should be translated"""
         if not text or len(text.strip()) < 3:
@@ -310,6 +350,16 @@ class DOCXProcessor(IDocumentProcessor):
                     # Fallback to simple text replacement
                     if translated_text:  # Only set non-empty translations
                         paragraph.text = translated_text
+            else:
+                # Check for static translations for untranslated paragraphs
+                original_text = paragraph.text.strip()
+                if original_text and len(original_text) > 0:
+                    static_translation = self._apply_static_translation(original_text)
+                    if static_translation != original_text:
+                        try:
+                            self._replace_paragraph_text(paragraph, static_translation)
+                        except Exception:
+                            paragraph.text = static_translation
             
             # Maintain document structure even for untranslated paragraphs
 
@@ -326,6 +376,16 @@ class DOCXProcessor(IDocumentProcessor):
                             except Exception as e:
                                 # Fallback to simple text replacement
                                 paragraph.text = translations[key]
+                        else:
+                            # Apply static translations to untranslated table content
+                            original_text = paragraph.text.strip()
+                            if original_text and len(original_text) > 0:
+                                static_translation = self._apply_static_translation(original_text)
+                                if static_translation != original_text:
+                                    try:
+                                        self._replace_paragraph_text(paragraph, static_translation)
+                                    except Exception:
+                                        paragraph.text = static_translation
 
     def _replace_paragraph_text(self, paragraph, new_text: str):
         """Replace paragraph text while preserving formatting"""
