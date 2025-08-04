@@ -2,11 +2,12 @@
 
 ## Overview
 
-This is an AI-powered translation system specifically designed for CVE (Common Vulnerabilities and Exposures) documents. The application translates English CVE documents to Japanese while preserving technical formatting, hyperlinks, tables, and CVE-specific terminology. It uses a Streamlit frontend with Azure OpenAI for translation and OpenAI for embeddings-based validation.
+A professional AI-powered translation system that converts English CVE documents to Japanese while completely replacing the first page with a Japanese template image and preserving all technical formatting. Single entry point through `modular_app.py` with clean, modular architecture.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Project structure: Clean and professional with single entry point and essential files only.
 
 ## System Architecture
 

@@ -17,29 +17,16 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Modular CVE System"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Simple Upload Interface"
+args = "CVE Translation System"
 
 [[workflows.workflow]]
-name = "Modular CVE System"
+name = "CVE Translation System"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "streamlit run modular_app.py --server.port 5000"
 waitForPort = 5000
-
-[[workflows.workflow]]
-name = "Simple Upload Interface"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "streamlit run simple_upload_app.py --server.port 3000"
-waitForPort = 3000
 
 [[ports]]
 localPort = 3000
