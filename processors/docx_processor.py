@@ -293,7 +293,7 @@ class DOCXProcessor(IDocumentProcessor):
         return translated_text
 
     def _insert_japanese_first_page_image(self, doc):
-        """Insert the pre-translated Japanese first page image at document beginning"""
+        """Insert the pre-translated Japanese first page image and remove original first page content"""
         try:
             from docx.shared import Inches
             import os
@@ -305,24 +305,86 @@ class DOCXProcessor(IDocumentProcessor):
                 print(f"Warning: Japanese template image not found at {image_path}")
                 return
             
-            # Insert image at the beginning of the document
-            # Create a new paragraph at the start
+            # First, identify and remove all first page content
+            self._remove_first_page_content(doc)
+            
+            # Create a new paragraph at the very beginning for the image
             first_paragraph = doc.paragraphs[0] if doc.paragraphs else doc.add_paragraph()
             
             # Clear any existing content in the first paragraph
             first_paragraph.clear()
             
-            # Add the image to the first paragraph
-            run = first_paragraph.runs[0] if first_paragraph.runs else first_paragraph.add_run()
+            # Add the Japanese image to the first paragraph
+            run = first_paragraph.add_run()
             run.add_picture(image_path, width=Inches(7))  # Adjust width as needed
             
             # Add a page break after the image to separate it from CVE content
             first_paragraph.add_run().add_break()
             
-            print("Successfully inserted Japanese first page image")
+            print("Successfully inserted Japanese first page image and removed original content")
             
         except Exception as e:
             print(f"Warning: Could not insert Japanese template image: {e}")
+
+    def _remove_first_page_content(self, doc):
+        """Remove all original first page content before inserting Japanese image"""
+        try:
+            paragraphs_to_remove = []
+            
+            # Define first page content indicators
+            first_page_indicators = [
+                "attack surface",
+                "sophisticated threat actors", 
+                "vulnerability management has shifted",
+                "proactive and predictive approach",
+                "transformation calls for",
+                "risk-based methodologies",
+                "advanced threat intelligence",
+                "broader security architecture",
+                "contemporary vulnerability management",
+                "organization's distinct threat environment",
+                "customize remediation strategies",
+                "advanced vulnerability management",
+                "avm services",
+                "risk-based approach",
+                "asset value",
+                "severity of vulnerabilities",
+                "threat actors"
+            ]
+            
+            # Find and mark paragraphs for removal
+            for i, paragraph in enumerate(doc.paragraphs):
+                text = paragraph.text.strip().lower()
+                
+                # Remove paragraphs that contain first page indicators
+                should_remove = False
+                for indicator in first_page_indicators:
+                    if indicator in text:
+                        should_remove = True
+                        break
+                
+                # Also remove very short paragraphs at the beginning (likely spacing)
+                if i < 20 and len(text) < 10:
+                    should_remove = True
+                
+                # Stop removing when we reach CVE content
+                if ("cve-" in text or "vmware" in text or "vmsa-" in text) and len(text) > 20:
+                    break
+                    
+                if should_remove:
+                    paragraphs_to_remove.append(paragraph)
+            
+            # Remove identified paragraphs
+            print(f"Removing {len(paragraphs_to_remove)} first page paragraphs")
+            for paragraph in paragraphs_to_remove:
+                try:
+                    p = paragraph._element
+                    p.getparent().remove(p)
+                except Exception as e:
+                    print(f"Could not remove paragraph: {e}")
+                    
+        except Exception as e:
+            print(f"Warning: Could not remove first page content: {e}")
 
     def _get_static_translations(self) -> Dict[str, str]:
         """Get mapping of static English text to Japanese translations for first page content"""
