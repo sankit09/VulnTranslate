@@ -246,25 +246,3 @@ export DEBUG_MODE=True
 streamlit run modular_app.py --server.port 5000
 ```
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/new-feature`
-3. Commit changes: `git commit -am 'Add new feature'`
-4. Push to branch: `git push origin feature/new-feature`
-5. Submit a Pull Request
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For technical support or questions:
-- **Issues**: Create a GitHub issue with detailed description
-- **Documentation**: Refer to inline code documentation
-- **API References**: Check Azure OpenAI and OpenAI API documentation
-
----
-
-**Built with ❤️ for the cybersecurity community**
