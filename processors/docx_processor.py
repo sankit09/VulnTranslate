@@ -348,76 +348,48 @@ class DOCXProcessor(IDocumentProcessor):
     def _remove_first_page_content(self, doc):
         """Remove all original first page content before inserting Japanese image"""
         try:
+            # First, let's debug what we have
+            print("=== DEBUGGING DOCUMENT CONTENT ===")
+            for i, paragraph in enumerate(doc.paragraphs[:30]):  # Check first 30 paragraphs
+                text = paragraph.text.strip()
+                print(f"Para {i}: '{text[:100]}...' (len: {len(text)})")
+            
+            # Very aggressive approach - remove everything until we find the first VMware/CVE line
             paragraphs_to_remove = []
+            cve_started = False
             
-            # Define comprehensive first page content indicators  
-            first_page_indicators = [
-                "as the attack surface expands",
-                "attack surface",
-                "sophisticated threat actors", 
-                "vulnerability management has shifted",
-                "proactive and predictive approach",
-                "transformation calls for",
-                "risk-based methodologies",
-                "advanced threat intelligence",
-                "broader security architecture",
-                "contemporary vulnerability management",
-                "organization's distinct threat environment",
-                "customize remediation strategies",
-                "advanced vulnerability management",
-                "avm services",
-                "risk-based approach", 
-                "asset value",
-                "severity of vulnerabilities",
-                "threat actors",
-                "this is where our proactive",
-                "build a robust vulnerability management system",
-                "based on a risk-based approach",
-                "come to play and help you"
-            ]
-            
-            # Find and mark paragraphs for removal - be very aggressive
-            cve_content_found = False
             for i, paragraph in enumerate(doc.paragraphs):
                 text = paragraph.text.strip().lower()
                 
-                # Check if this is clearly CVE content
-                is_cve_content = (
-                    ("vmware" in text and ("esxi" in text or "vcenter" in text or "workstation" in text or "fusion" in text)) or
-                    ("vmsa-" in text and len(text) > 10) or
-                    ("cve-" in text and len(text) > 10) or
-                    ("cvss" in text and ("score" in text or "rating" in text))
-                )
-                
-                if is_cve_content:
-                    print(f"Found CVE content at paragraph {i}: '{text[:50]}...', stopping removal")
-                    cve_content_found = True
-                    break
-                
-                # Remove everything before CVE content
-                should_remove = True
-                
-                # Additional checks for first page indicators
-                for indicator in first_page_indicators:
-                    if indicator in text:
-                        should_remove = True
+                # Look for the very first line that mentions VMware products or CVE content
+                if not cve_started:
+                    # This should be the first actual CVE content line
+                    if (("vmware" in text and any(product in text for product in ["esxi", "vcenter", "workstation", "fusion"])) or
+                        ("vmsa-" in text) or
+                        ("cve-" in text and len(text) > 15) or
+                        ("脆弱性の詳細" in text) or  # In case it's already translated
+                        ("vulnerability details" in text.lower())):
+                        
+                        print(f"=== CVE CONTENT STARTS AT PARAGRAPH {i} ===")
+                        print(f"First CVE line: '{paragraph.text[:100]}...'")
+                        cve_started = True
                         break
-                
-                # Remove empty paragraphs and spacing
-                if len(text) < 5:
-                    should_remove = True
-                    
-                if should_remove and not cve_content_found:
-                    paragraphs_to_remove.append(paragraph)
+                    else:
+                        # Remove everything before CVE content
+                        paragraphs_to_remove.append(paragraph)
+                        print(f"Marking paragraph {i} for removal: '{text[:50]}...'")
             
-            # Remove identified paragraphs
-            print(f"Removing {len(paragraphs_to_remove)} first page paragraphs")
+            # Remove all paragraphs before CVE content
+            print(f"=== REMOVING {len(paragraphs_to_remove)} PARAGRAPHS ===")
             for paragraph in paragraphs_to_remove:
                 try:
                     p = paragraph._element
                     p.getparent().remove(p)
+                    print(f"Removed: '{paragraph.text[:50]}...'")
                 except Exception as e:
                     print(f"Could not remove paragraph: {e}")
+                    
+            print("=== FIRST PAGE CONTENT REMOVAL COMPLETE ===")
                     
         except Exception as e:
             print(f"Warning: Could not remove first page content: {e}")
