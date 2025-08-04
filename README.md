@@ -1,10 +1,9 @@
 # CVE Translation System
 
-A professional AI-powered translation system that converts English CVE documents to Japanese while completely replacing the first page with a Japanese template image and preserving all technical formatting.
+A professional AI-powered translation system that converts English CVE documents to Japanese while preserving all technical formatting.
 
 ## 🚀 Features
 
-- **🎯 Complete First Page Replacement**: Removes original English first page content and replaces with Japanese template image
 - **🤖 Enterprise Translation**: Uses Azure OpenAI GPT-4o with CVE-specific prompts for cybersecurity documents  
 - **📄 Format Preservation**: Maintains all document formatting, tables, hyperlinks, fonts, and structure
 - **🔒 Technical Term Protection**: Preserves CVE IDs, product names, version numbers, URLs, and technical identifiers
