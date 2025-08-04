@@ -38,6 +38,9 @@ class DOCXProcessor(IDocumentProcessor):
             # CRITICAL FIX: Remove first page content BEFORE processing for translation
             self._remove_first_page_content_early(doc)
             
+            # Also remove any remaining first page content that might be in tables or other structures
+            self._clean_remaining_first_page_content(doc)
+            
             content_blocks = []
             tables = []
             hyperlinks = []
@@ -434,12 +437,11 @@ class DOCXProcessor(IDocumentProcessor):
             for i, paragraph in enumerate(doc.paragraphs):
                 text = paragraph.text.strip().lower()
                 
-                # Look for the start of actual CVE content
+                # Look for the start of actual CVE content - be very strict
                 is_cve_content = (
-                    ("vmware" in text and any(product in text for product in ["esxi", "vcenter", "workstation", "fusion"])) or
                     ("vmsa-" in text and len(text) > 10) or
                     ("cve-" in text and len(text) > 15) or
-                    ("vulnerability detail" in text and len(text) > 10) or
+                    ("vulnerability detail" in text and "resolution" in text) or
                     ("脆弱性の詳細" in text)  # Japanese translation
                 )
                 
@@ -448,13 +450,13 @@ class DOCXProcessor(IDocumentProcessor):
                     cve_content_started = True
                     break
                 
-                # Remove first page content before CVE content starts
+                # Remove ALL content before true CVE content starts
                 if not cve_content_started:
                     # Check if paragraph contains first page indicators
                     contains_first_page_content = any(indicator in text for indicator in first_page_indicators)
                     
-                    # Remove if it contains first page content OR if it's before CVE content
-                    if contains_first_page_content or len(text) < 50:  # Remove short paragraphs too
+                    # Be very aggressive - remove everything before CVE content
+                    if contains_first_page_content or len(text.strip()) > 0:  # Remove all non-empty paragraphs
                         paragraphs_to_remove.append(paragraph)
                         print(f"Marking early paragraph {i} for removal: '{text[:50]}...'")
             
@@ -472,6 +474,30 @@ class DOCXProcessor(IDocumentProcessor):
                     
         except Exception as e:
             print(f"Warning: Could not remove first page content early: {e}")
+
+    def _clean_remaining_first_page_content(self, doc):
+        """Clean any remaining first page content from tables or other structures"""
+        try:
+            print("=== CLEANING REMAINING FIRST PAGE CONTENT ===")
+            
+            # Clean table cells that might contain first page content
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for paragraph in cell.paragraphs:
+                            text = paragraph.text.strip().lower()
+                            if any(indicator in text for indicator in [
+                                "attack surface", "vulnerability management has shifted",
+                                "avm services", "risk-based approach"
+                            ]):
+                                # Clear the paragraph content
+                                paragraph.clear()
+                                print(f"Cleared table cell content: '{text[:30]}...'")
+            
+            print("=== REMAINING CONTENT CLEANUP COMPLETE ===")
+            
+        except Exception as e:
+            print(f"Warning: Could not clean remaining first page content: {e}")
 
     def _get_static_translations(self) -> Dict[str, str]:
         """Get mapping of static English text to Japanese translations for first page content"""
