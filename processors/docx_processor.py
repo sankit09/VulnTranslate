@@ -113,7 +113,7 @@ class DOCXProcessor(IDocumentProcessor):
             )
 
     def reconstruct_document(self, content: Dict[str, Any], translations: Dict[str, str]) -> bytes:
-        """Reconstruct DOCX document with translated content"""
+        """Reconstruct DOCX document with Japanese first page image and translated content"""
         try:
             original_doc = content.get('original_document')
             if not original_doc:
@@ -122,7 +122,10 @@ class DOCXProcessor(IDocumentProcessor):
             # Create a copy of the document for modification
             doc_copy = self._deep_copy_document(original_doc)
             
-            # Apply translations to paragraphs
+            # Insert Japanese template image at the beginning
+            self._insert_japanese_first_page_image(doc_copy)
+            
+            # Apply translations to paragraphs (skipping static content)
             self._apply_translations_to_paragraphs(doc_copy, translations)
             
             # Apply translations to tables
@@ -148,8 +151,13 @@ class DOCXProcessor(IDocumentProcessor):
         # CRITICAL: Include ALL paragraphs for complete document coverage
         # Empty paragraphs maintain document structure and spacing
         
-        # Determine if paragraph is translatable (even empty ones need processing)
-        translatable = self._is_translatable_text(text) if text else False
+        # Check if this is static first-page content that should not be translated
+        static_translations = self._get_static_translations()
+        if text in static_translations:
+            translatable = False  # Mark static content as non-translatable
+        else:
+            # Determine if paragraph is translatable (even empty ones need processing)
+            translatable = self._is_translatable_text(text) if text else False
         
         content_block = {
             'id': str(para_id),
@@ -266,29 +274,7 @@ class DOCXProcessor(IDocumentProcessor):
             pass
         return None
 
-    def _get_static_translations(self) -> Dict[str, str]:
-        """Static translations for recurring first-page content"""
-        return {
-            "Attack Surface": "攻撃対象領域",
-            "Advanced Vulnerability Management": "高度脆弱性管理",
-            "Advanced Vulnerability Management (AVM)": "高度脆弱性管理（AVM）",
-            "Cyber Security Advisory": "サイバーセキュリティアドバイザリ",
-            "vulnerability management": "脆弱性管理",
-            "threat actors": "脅威アクター",
-            "Risk-Based Approach": "リスクベースアプローチ",
-            "Asset Value": "資産価値",
-            "Severity of Vulnerabilities": "脆弱性の深刻度",
-            "Threat Actors": "脅威アクター",
-            "Vulnerability Management System": "脆弱性管理システム",
-            "proactive and predictive approach": "予防的で予測的なアプローチ",
-            "sophisticated threat actors": "高度な脅威アクター",
-            "embrace of risk-based methodologies": "リスクベース手法の採用",
-            "utilization of advanced threat intelligence": "高度な脅威インテリジェンスの活用",
-            "alignment with the broader security architecture": "より広範なセキュリティアーキテクチャとの整合",
-            "Contemporary vulnerability management": "現代的な脆弱性管理",
-            "organization's distinct threat environment": "組織の独特な脅威環境",
-            "customize remediation strategies accordingly": "対応する修復戦略のカスタマイズ"
-        }
+
 
     def _apply_static_translation(self, text: str) -> str:
         """Apply static translations to known recurring content"""
@@ -305,6 +291,62 @@ class DOCXProcessor(IDocumentProcessor):
                 translated_text = translated_text.replace(english, japanese)
         
         return translated_text
+
+    def _insert_japanese_first_page_image(self, doc):
+        """Insert the pre-translated Japanese first page image at document beginning"""
+        try:
+            from docx.shared import Inches
+            import os
+            
+            # Path to the Japanese template image
+            image_path = "japanese_first_page_template.png"
+            
+            if not os.path.exists(image_path):
+                print(f"Warning: Japanese template image not found at {image_path}")
+                return
+            
+            # Insert image at the beginning of the document
+            # Create a new paragraph at the start
+            first_paragraph = doc.paragraphs[0] if doc.paragraphs else doc.add_paragraph()
+            
+            # Clear any existing content in the first paragraph
+            first_paragraph.clear()
+            
+            # Add the image to the first paragraph
+            run = first_paragraph.runs[0] if first_paragraph.runs else first_paragraph.add_run()
+            run.add_picture(image_path, width=Inches(7))  # Adjust width as needed
+            
+            # Add a page break after the image to separate it from CVE content
+            first_paragraph.add_run().add_break()
+            
+            print("Successfully inserted Japanese first page image")
+            
+        except Exception as e:
+            print(f"Warning: Could not insert Japanese template image: {e}")
+
+    def _get_static_translations(self) -> Dict[str, str]:
+        """Get mapping of static English text to Japanese translations for first page content"""
+        return {
+            # First page static content that should be replaced with image
+            "Cyber Security Advisory": "サイバーセキュリティアドバイザリ",
+            "Advanced Vulnerability Management": "高度脆弱性管理",
+            "AVM": "AVM",
+            "Attack surface": "アタックサーフェス",
+            "threat actors": "脅威アクター",
+            "proactive and predictive approach": "プロアクティブで予測的なアプローチ",
+            "risk-based methodologies": "リスクベース手法",
+            "advanced threat intelligence": "高度な脅威インテリジェンス",
+            "broader security architecture": "より広範なセキュリティアーキテクチャ",
+            "Contemporary vulnerability management": "現代の脆弱性管理",
+            "organization's distinct threat environment": "組織の独特な脅威環境",
+            "customize remediation strategies": "修復戦略のカスタマイズ",
+            "Proactive Advanced Vulnerability Management": "プロアクティブな高度脆弱性管理",
+            "Risk-Based Approach": "リスクベースアプローチ",
+            "Asset Value": "資産価値", 
+            "Severity of Vulnerabilities": "脆弱性の深刻度",
+            "Threat Environment": "脅威環境",
+            "robust vulnerability management system": "堅牢な脆弱性管理システム"
+        }
 
     def _is_translatable_text(self, text: str) -> bool:
         """Determine if text should be translated"""
