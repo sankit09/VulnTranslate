@@ -40,10 +40,14 @@ class DOCXProcessor(IDocumentProcessor):
             hyperlinks = []
             images = []
             
-            # Process ALL document paragraphs (including empty ones for structure)
+            # Process ALL document paragraphs (excluding first page content)
             for para_idx, paragraph in enumerate(doc.paragraphs):
+                # Skip first page content - only translate from page 2 onwards
+                if self._is_first_page_content(paragraph, para_idx):
+                    continue
+                    
                 content_block = self._process_paragraph(paragraph, para_idx)
-                # Include ALL paragraphs, even empty ones, to maintain structure
+                # Include paragraphs from page 2 onwards, even empty ones, to maintain structure
                 if content_block is not None:
                     content_blocks.append(content_block)
             
@@ -58,10 +62,14 @@ class DOCXProcessor(IDocumentProcessor):
                 table_data = self._process_table(table, table_idx)
                 tables.append(table_data)
                 
-                # Add table cell content to content blocks
+                # Add table cell content to content blocks (skip first page tables)
                 for row_idx, row in enumerate(table.rows):
                     for cell_idx, cell in enumerate(row.cells):
                         for para_idx, paragraph in enumerate(cell.paragraphs):
+                            # Skip tables that are part of the first page
+                            if table_idx == 0 and self._is_first_page_content(paragraph, 0):
+                                continue
+                                
                             content_block = self._process_paragraph(
                                 paragraph, 
                                 f"table_{table_idx}_row_{row_idx}_cell_{cell_idx}_para_{para_idx}"
@@ -305,6 +313,30 @@ class DOCXProcessor(IDocumentProcessor):
                 translated_text = translated_text.replace(english, japanese)
         
         return translated_text
+
+    def _is_first_page_content(self, paragraph, para_idx: int) -> bool:
+        """Determine if paragraph is part of the first page that should be skipped"""
+        # Skip the first 15-20 paragraphs which typically contain the first page content
+        # This includes the header image, title, and main text box content
+        if para_idx < 20:
+            return True
+        
+        # Also check for specific first-page indicators in the text
+        text = paragraph.text.strip().lower()
+        first_page_indicators = [
+            "cyber security advisory",
+            "attack surface",
+            "advanced vulnerability management",
+            "proactive and predictive approach",
+            "risk-based approach",
+            "contemporary vulnerability management"
+        ]
+        
+        for indicator in first_page_indicators:
+            if indicator in text:
+                return True
+        
+        return False
 
     def _is_translatable_text(self, text: str) -> bool:
         """Determine if text should be translated"""
