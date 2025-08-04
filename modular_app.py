@@ -2,6 +2,9 @@
 Modular CVE Translation System - Streamlit Application
 A completely modular, enterprise-grade CVE translation system built with clean architecture
 """
+from dotenv import load_dotenv
+load_dotenv()
+
 
 import streamlit as st
 import os

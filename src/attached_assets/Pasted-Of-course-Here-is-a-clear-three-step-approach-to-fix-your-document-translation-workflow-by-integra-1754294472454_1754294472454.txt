@@ -1,0 +1,82 @@
+Of course. Here is a clear, three-step approach to fix your document translation workflow by integrating the logic from both of your scripts.
+
+The goal is to stop translating the static first-page text and instead insert a pre-translated image of that first page.
+
+-----
+
+### **Step 1: Mark Static Text as Non-Translatable**
+
+First, modify your `DOCXProcessor` to identify and flag the static text on the first page. This prevents it from being sent to the translation service, saving time and cost.
+
+In the `_process_paragraph` method of your `DOCXProcessor` class, add a check to see if the paragraph's text exactly matches one of your known static phrases. If it does, mark it as `translatable: False`.
+
+```python
+# In DOCXProcessor class
+
+def _process_paragraph(self, paragraph, para_id) -> Dict[str, Any]:
+    text = paragraph.text.strip()
+    static_translations = self._get_static_translations()
+
+    # Check if the text is a known static string
+    if text in static_translations:
+        translatable = False  # Mark as non-translatable
+    else:
+        translatable = self._is_translatable_text(text) if text else False
+
+    # ... rest of the method
+    content_block = {
+        'id': str(para_id),
+        'text': text,
+        'translatable': translatable, # This flag is now correctly set
+        # ... other keys
+    }
+    return content_block
+```
+
+-----
+
+### **Step 2: Prepare Your Pre-Translated Image**
+
+You have the final, translated image (`image_b2c087.jpg`). Ensure this image file is saved in a location accessible to your script, such as the same directory. This image will serve as the new, translated first page.
+
+-----
+
+### **Step 3: Insert the Image During Reconstruction**
+
+Finally, modify your `DocumentReconstructor` class to insert the pre-translated image at the very beginning of the document before it adds the rest of the translated text.
+
+In the `_reconstruct_docx` method, add the code to open and insert `image_b2c087.jpg` right after the `DocumentBuilder` is created.
+
+```python
+# In DocumentReconstructor class
+
+def _reconstruct_docx(self,
+                     original_data: Dict[str, Any],
+                     translated_blocks: List[Dict[str, Any]],
+                     # ... other arguments
+                     ) -> BytesIO:
+    try:
+        doc = aw.Document()
+        builder = aw.DocumentBuilder(doc)
+
+        # === INSERT STATIC IMAGE AT THE TOP ===
+        try:
+            with open('image_b2c087.jpg', 'rb') as image_file:
+                image_data = image_file.read()
+            builder.insert_image(BytesIO(image_data))
+            builder.writeln() # Adds a space after the image
+        except FileNotFoundError:
+            print("Warning: Static header image was not found.")
+        # =======================================
+
+        # Process the rest of the translated blocks as normal
+        for block in translated_blocks:
+            # The paragraphs you marked as non-translatable will be skipped,
+            # which is correct because the image now replaces them.
+            if block.get('text'): # Simple check to skip empty blocks
+                 self._add_block_to_docx(doc, builder, block, preserve_formatting, preserve_hyperlinks)
+
+        # ... rest of the method to save the document
+```
+
+By following these three steps, your application will correctly ignore the original first-page text and replace it with the complete, translated image during the final document creation.

@@ -1,0 +1,87 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env
+.env.*
+
+# VSCode
+.vscode/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+test-results/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Pyre type checker
+.pyre/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+
+# PyCharm
+.idea/
+
+# Streamlit cache
+.streamlit/config.toml
+.streamlit/credentials.toml
+.streamlit/secrets.toml
+
+# Log files
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Lock files (optional)
+poetry.lock
+Pipfile.lock
+uv.lock
+
+# Optional: remove large or sensitive assets
+*.png
+*.jpg
+*.jpeg
+*.docx
+*.pdf
+*.zip
+*.tar.gz
+*.bak
