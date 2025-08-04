@@ -296,6 +296,7 @@ class DOCXProcessor(IDocumentProcessor):
         """Insert the pre-translated Japanese first page image and remove original first page content"""
         try:
             from docx.shared import Inches
+            from docx.enum.text import WD_BREAK
             import os
             
             # Path to the Japanese template image
@@ -308,23 +309,41 @@ class DOCXProcessor(IDocumentProcessor):
             # First, identify and remove all first page content
             self._remove_first_page_content(doc)
             
-            # Create a new paragraph at the very beginning for the image
-            first_paragraph = doc.paragraphs[0] if doc.paragraphs else doc.add_paragraph()
+            # Insert image at the absolute beginning by manipulating XML directly
+            body = doc._element.body
             
-            # Clear any existing content in the first paragraph
-            first_paragraph.clear()
+            # Create a new paragraph element for the image
+            from docx.oxml import parse_xml
+            new_para_xml = parse_xml('<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"></w:p>')
             
-            # Add the Japanese image to the first paragraph
-            run = first_paragraph.add_run()
-            run.add_picture(image_path, width=Inches(7))  # Adjust width as needed
+            # Insert at the very beginning of the body
+            body.insert(0, new_para_xml)
             
-            # Add a page break after the image to separate it from CVE content
-            first_paragraph.add_run().add_break()
+            # Create paragraph object from the XML element
+            from docx.text.paragraph import Paragraph
+            image_paragraph = Paragraph(new_para_xml, doc)
             
-            print("Successfully inserted Japanese first page image and removed original content")
+            # Add the Japanese image to this paragraph
+            run = image_paragraph.add_run()
+            run.add_picture(image_path, width=Inches(7))
+            
+            # Add a page break to separate from CVE content
+            run.add_break(WD_BREAK.PAGE)
+            
+            print("Successfully inserted Japanese first page image at document beginning")
             
         except Exception as e:
             print(f"Warning: Could not insert Japanese template image: {e}")
+            # Fallback: try simple insertion
+            try:
+                if doc.paragraphs:
+                    first_para = doc.paragraphs[0]
+                    first_para.clear()
+                    run = first_para.add_run()
+                    run.add_picture(image_path, width=Inches(6))
+                    run.add_break()
+            except Exception:
+                pass
 
     def _remove_first_page_content(self, doc):
         """Remove all original first page content before inserting Japanese image"""
@@ -357,31 +376,38 @@ class DOCXProcessor(IDocumentProcessor):
                 "come to play and help you"
             ]
             
-            # Find and mark paragraphs for removal - be more aggressive
+            # Find and mark paragraphs for removal - be very aggressive
+            cve_content_found = False
             for i, paragraph in enumerate(doc.paragraphs):
                 text = paragraph.text.strip().lower()
                 
-                # Remove paragraphs that contain first page indicators
-                should_remove = False
+                # Check if this is clearly CVE content
+                is_cve_content = (
+                    ("vmware" in text and ("esxi" in text or "vcenter" in text or "workstation" in text or "fusion" in text)) or
+                    ("vmsa-" in text and len(text) > 10) or
+                    ("cve-" in text and len(text) > 10) or
+                    ("cvss" in text and ("score" in text or "rating" in text))
+                )
+                
+                if is_cve_content:
+                    print(f"Found CVE content at paragraph {i}: '{text[:50]}...', stopping removal")
+                    cve_content_found = True
+                    break
+                
+                # Remove everything before CVE content
+                should_remove = True
+                
+                # Additional checks for first page indicators
                 for indicator in first_page_indicators:
                     if indicator in text:
                         should_remove = True
                         break
                 
-                # Remove the first 25 paragraphs if they don't contain CVE content
-                # This is more aggressive to ensure we get all first page content
-                if i < 25 and not ("cve-" in text or "vmsa-" in text):
-                    # Only keep if it's clearly CVE content
-                    if not ("vmware" in text and len(text) > 30):
-                        should_remove = True
-                
-                # Stop removing when we reach clear CVE content  
-                if (("cve-" in text or "vmsa-" in text) and len(text) > 20) or \
-                   ("vmware" in text and ("esxi" in text or "vcenter" in text) and len(text) > 30):
-                    print(f"Found CVE content at paragraph {i}, stopping removal")
-                    break
+                # Remove empty paragraphs and spacing
+                if len(text) < 5:
+                    should_remove = True
                     
-                if should_remove:
+                if should_remove and not cve_content_found:
                     paragraphs_to_remove.append(paragraph)
             
             # Remove identified paragraphs
