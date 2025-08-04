@@ -344,55 +344,92 @@ class DOCXProcessor(IDocumentProcessor):
     def _replace_first_page_with_japanese_template(self, doc):
         """Replace the first page content with pre-translated Japanese template"""
         try:
-            # Clear first 20 paragraphs (first page content)
+            # More aggressive first page content removal
+            # Find and remove paragraphs containing first page indicators
             paragraphs_to_remove = []
-            for i, paragraph in enumerate(doc.paragraphs[:20]):
-                if i < 20:
-                    paragraphs_to_remove.append(paragraph)
             
-            # Remove first page paragraphs
+            for i, paragraph in enumerate(doc.paragraphs):
+                text = paragraph.text.strip().lower()
+                
+                # Check if this is first page content
+                if (i < 25 or  # First 25 paragraphs
+                    "attack surface" in text or
+                    "cyber security advisory" in text or
+                    "vulnerability management" in text or
+                    "advanced vulnerability management" in text or
+                    "avm" in text or
+                    "risk-based approach" in text or
+                    "threat actors" in text):
+                    paragraphs_to_remove.append(paragraph)
+                else:
+                    # Stop when we reach actual CVE content
+                    if ("cve-" in text or "vmware" in text) and i > 10:
+                        break
+            
+            # Remove identified first page paragraphs
             for paragraph in paragraphs_to_remove:
                 p = paragraph._element
                 p.getparent().remove(p)
             
-            # Insert Japanese template content at the beginning
+            # Insert Japanese template at the very beginning
             self._insert_japanese_first_page_content(doc)
             
         except Exception as e:
             print(f"Warning: Could not replace first page: {e}")
     
     def _insert_japanese_first_page_content(self, doc):
-        """Insert the Japanese first page content"""
+        """Insert the Japanese first page content at the document start"""
         try:
-            # Insert at the beginning of the document
-            first_paragraph = doc.paragraphs[0] if doc.paragraphs else None
+            # Get the document body element for direct insertion
+            body = doc._element.body
             
-            # Add Japanese header content
-            header_para = doc.add_paragraph()
-            header_run = header_para.add_run("Cyber Security Advisory")
-            header_run.font.size = Inches(0.5)  # Large font
-            header_run.bold = True
-            header_para.alignment = 1  # Center alignment
+            # Create new paragraphs and insert them at the beginning
+            from docx.oxml.shared import qn
+            from docx.oxml import OxmlElement
             
-            # Add spacing
-            doc.add_paragraph()
+            # Create header paragraph
+            header_p = OxmlElement('w:p')
+            header_run = OxmlElement('w:r')
+            header_text = OxmlElement('w:t')
+            header_text.text = "サイバーセキュリティアドバイザリ"
+            header_run.append(header_text)
+            header_p.append(header_run)
             
-            # Add main Japanese content
-            content_para = doc.add_paragraph()
-            japanese_text = """アタックサーフェスが拡大し、より洗練された脅威アクターが台頭する中、脆弱性管理はリアクティブな姿勢からプロアクティブで予測的なアプローチへと変化している。この変革には、リスクベースの手法の採用、高度な脅威インテリジェンスの活用、より広範なセキュリティアーキテクチャとの連携が必要です。現代の脆弱性管理は、組織特有の脅威環境を考慮に入れ、それに応じて修復戦略をカスタマイズする必要があります。
+            # Create spacing paragraph
+            spacing_p = OxmlElement('w:p')
+            
+            # Create main content paragraph
+            content_p = OxmlElement('w:p')
+            content_run = OxmlElement('w:r')
+            content_text = OxmlElement('w:t')
+            content_text.text = """アタックサーフェスが拡大し、より洗練された脅威アクターが台頭する中、脆弱性管理はリアクティブな姿勢からプロアクティブで予測的なアプローチへと変化している。この変革には、リスクベースの手法の採用、高度な脅威インテリジェンスの活用、より広範なセキュリティアーキテクチャとの連携が必要です。現代の脆弱性管理は、組織特有の脅威環境を考慮に入れ、それに応じて修復戦略をカスタマイズする必要があります。
 
 そこで、当社のプロアクティブな高度脆弱性管理（AVM）サービスが登場し、リスクベースのアプローチ、資産価値、脆弱性の深刻度、脅威環境に基づく堅牢な脆弱性管理システムの構築を支援します。"""
+            content_run.append(content_text)
+            content_p.append(content_run)
             
-            content_para.add_run(japanese_text)
-            
-            # Move these paragraphs to the beginning if we have existing content
-            if first_paragraph and first_paragraph != header_para:
-                # Move the new paragraphs to the beginning
-                # This is a simplified approach - in practice you'd need more complex XML manipulation
-                pass
+            # Insert at the beginning of the document
+            if len(body) > 0:
+                body.insert(0, header_p)
+                body.insert(1, spacing_p)
+                body.insert(2, content_p)
+            else:
+                body.append(header_p)
+                body.append(spacing_p)
+                body.append(content_p)
                 
         except Exception as e:
             print(f"Warning: Could not insert Japanese content: {e}")
+            # Fallback to simple paragraph addition
+            try:
+                # Simple fallback
+                new_para = doc.add_paragraph("サイバーセキュリティアドバイザリ")
+                doc.add_paragraph()
+                doc.add_paragraph("""アタックサーフェスが拡大し、より洗練された脅威アクターが台頭する中、脆弱性管理はリアクティブな姿勢からプロアクティブで予測的なアプローチへと変化している。この変革には、リスクベースの手法の採用、高度な脅威インテリジェンスの活用、より広範なセキュリティアーキテクチャとの連携が必要です。現代の脆弱性管理は、組織特有の脅威環境を考慮に入れ、それに応じて修復戦略をカスタマイズする必要があります。
+
+そこで、当社のプロアクティブな高度脆弱性管理（AVM）サービスが登場し、リスクベースのアプローチ、資産価値、脆弱性の深刻度、脅威環境に基づく堅牢な脆弱性管理システムの構築を支援します。""")
+            except Exception:
+                pass
 
     def _is_translatable_text(self, text: str) -> bool:
         """Determine if text should be translated"""
